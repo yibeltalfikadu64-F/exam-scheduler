@@ -1,0 +1,84 @@
+# ============================================================
+# docker-compose.yml  —  Exam Scheduler (frontend + backend + MySQL)
+# ------------------------------------------------------------
+# NOTE: Docker is NOT installed on the machine this was developed on.
+# This file is therefore UNVERIFIED. It documents the intended topology
+# and should be validated (`docker compose config`, `docker compose up`)
+# on a machine with Docker installed before relying on it.
+#
+# Secrets are read from the root .env file (see .env.example). Do not
+# commit real credentials.
+# ============================================================
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: exam_scheduler_mysql
+    restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me-root}
+      MYSQL_DATABASE: ${DB_NAME:-exam_scheduler_db}
+      MYSQL_USER: ${DB_USER:-exam_app}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-change-me-app}
+    ports:
+      - "${DB_EXPOSED_PORT:-3307}:3306"
+    volumes:
+      # Persistent database storage
+      - db_data:/var/lib/mysql
+      # Initial schema. NOTE: the MySQL entrypoint only executes top-level
+      # *.sql files in this directory, in alphabetical order. For deterministic
+      # ordering and idempotency, prefer `npm run db:migrate` after startup.
+      - ./database/docker-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: exam_scheduler_backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      HOST: 0.0.0.0
+      API_PREFIX: /api/v1
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-exam_app}
+      DB_PASSWORD: ${DB_PASSWORD:-change-me-app}
+      DB_NAME: ${DB_NAME:-exam_scheduler_db}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8080}
+    ports:
+      - "5000:5000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:5000/api/v1/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:5000/api/v1}
+    container_name: exam_scheduler_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+
+volumes:
+  db_data:
+    driver: local

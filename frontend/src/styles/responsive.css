@@ -1,0 +1,112 @@
+/* ============================================================
+   Responsive rules — desktop → tablet → mobile.
+   ============================================================ */
+
+/* ---------- Large tablet / small desktop ---------- */
+@media (max-width: 1200px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Tablet / off-canvas sidebar ---------- */
+@media (max-width: 960px) {
+  .app-shell,
+  .app-shell.is-collapsed {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: min(300px, 84vw);
+    height: 100vh;
+    transform: translateX(-102%);
+    transition: transform var(--transition-slow);
+    box-shadow: var(--shadow-lg);
+  }
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-toggle {
+    display: inline-flex;
+  }
+
+  .sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 35;
+    background-color: var(--overlay);
+    animation: es-fade-in var(--transition) both;
+  }
+
+  .login-page {
+    grid-template-columns: 1fr;
+  }
+  .login-hero {
+    display: none;
+  }
+}
+
+/* ---------- Mobile ---------- */
+@media (max-width: 640px) {
+  .page {
+    padding: var(--space-4) var(--space-3);
+    gap: var(--space-4);
+  }
+
+  .topbar {
+    padding: 0 var(--space-3);
+    gap: var(--space-2);
+  }
+  .topbar-title span {
+    display: none;
+  }
+  .search-box {
+    display: none;
+  }
+  .user-meta {
+    display: none;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .channel-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .page-header {
+    align-items: flex-start;
+  }
+
+  .exam-item {
+    align-items: flex-start;
+  }
+  .exam-main .meta {
+    gap: var(--space-2) var(--space-3);
+  }
+
+  .card-header,
+  .panel-header,
+  .panel-body-padded,
+  .conflict-list {
+    padding: var(--space-4);
+  }
+}
+
+/* ---------- Very small ---------- */
+@media (max-width: 420px) {
+  .btn {
+    padding: 9px 12px;
+  }
+  .stat-value {
+    font-size: var(--fs-xl);
+  }
+}

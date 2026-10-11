@@ -1,0 +1,12 @@
+node_modules/
+dist/
+dist-ssr/
+.env
+.env.*
+!.env.example
+*.local
+.vite/
+coverage/
+# Vite config-loader temp artifacts
+vite.config.js.timestamp-*.mjs
+*.timestamp-*.mjs

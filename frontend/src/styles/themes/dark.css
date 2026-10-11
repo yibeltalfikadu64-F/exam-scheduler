@@ -1,0 +1,49 @@
+/* ============================================================
+   Dark theme — semantic colour tokens.
+   Applied when <html data-theme="dark">.
+   ============================================================ */
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg-app: #070c17;
+  --bg-surface: #0e1626;
+  --bg-surface-alt: #121c30;
+  --bg-surface-sunken: #0a1220;
+  --bg-hover: #17223a;
+
+  --text-primary: #e5ecf6;
+  --text-secondary: #9fb0c9;
+  --text-muted: #6b7d99;
+  --text-inverse: #06121f;
+
+  --border-color: #1d2a44;
+  --border-strong: #2a3b5c;
+
+  --primary: #3b82f6;
+  --primary-hover: #60a5fa;
+  --primary-soft: #16294a;
+  --primary-contrast: #ffffff;
+
+  --success: #4ade80;
+  --success-soft: #0f2e1c;
+  --warning: #fbbf24;
+  --warning-soft: #33260a;
+  --danger: #f87171;
+  --danger-soft: #3a1414;
+  --info: #38bdf8;
+  --info-soft: #0a2a3a;
+
+  --focus-ring: rgba(96, 165, 250, 0.55);
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.55);
+  --shadow-md: 0 10px 24px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 22px 48px rgba(0, 0, 0, 0.6);
+
+  --overlay: rgba(2, 6, 16, 0.7);
+
+  --sidebar-bg: #070d1a;
+  --sidebar-bg-2: #0c1527;
+  --sidebar-border: rgba(148, 163, 184, 0.1);
+}

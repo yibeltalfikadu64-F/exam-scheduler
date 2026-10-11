@@ -1,0 +1,10 @@
+{
+  "roles": ["admin", "registrar", "department_head", "instructor", "student"],
+  "examScheduleStatuses": ["draft", "published", "archived"],
+  "examPeriodStatuses": ["draft", "open", "published", "closed", "archived"],
+  "examDetailStatuses": ["draft", "scheduled", "confirmed", "cancelled", "completed"],
+  "conflictSeverities": ["critical", "high", "medium", "low"],
+  "conflictStatuses": ["open", "resolved", "ignored"],
+  "constraintTypes": ["hard", "soft"],
+  "notificationChannels": ["in_app", "email", "sms"]
+}

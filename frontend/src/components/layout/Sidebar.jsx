@@ -34,7 +34,8 @@ const NAV_SECTIONS = [
   {
     label: 'Academic',
     items: [
-      { label: 'Departments & Programs', to: '/departments', icon: Building2 },
+      { label: 'Departments', to: '/departments', icon: Building2 },
+      { label: 'Programs', to: '/programs', icon: BookOpen },
       { label: 'Courses & Sections', to: '/courses', icon: BookOpen },
       { label: 'Students & Enrollments', to: '/students', icon: GraduationCap },
       { label: 'Instructors & Duties', to: '/instructors', icon: Users },

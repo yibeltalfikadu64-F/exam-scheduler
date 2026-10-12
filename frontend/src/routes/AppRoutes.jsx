@@ -5,6 +5,7 @@ import PrivateRoute from './PrivateRoute';
 import RoleRoute from './RoleRoute';
 import Dashboard from '../pages/Dashboard';
 import Departments from '../pages/Departments';
+import Programs from '../pages/Programs';
 import Courses from '../pages/Courses';
 import Students from '../pages/Students';
 import Instructors from '../pages/Instructors';
@@ -45,6 +46,7 @@ export default function AppRoutes() {
 
         {/* Academic */}
         <Route path="/departments" element={<Departments />} />
+        <Route path="/programs" element={<Programs />} />
         <Route path="/courses" element={<Courses />} />
         <Route path="/students" element={<Students />} />
         <Route path="/instructors" element={<Instructors />} />

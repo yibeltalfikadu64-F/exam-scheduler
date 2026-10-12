@@ -4,16 +4,30 @@ import DashboardLayout from '../components/layout/DashboardLayout';
 import PrivateRoute from './PrivateRoute';
 import RoleRoute from './RoleRoute';
 import Dashboard from '../pages/Dashboard';
+import Departments from '../pages/Departments';
+import Courses from '../pages/Courses';
+import Students from '../pages/Students';
+import Instructors from '../pages/Instructors';
+import Rooms from '../pages/Rooms';
+import TimeSlots from '../pages/TimeSlots';
+import Schedule from '../pages/Schedule';
+import Conflicts from '../pages/Conflicts';
+import Invigilation from '../pages/Invigilation';
+import Notifications from '../pages/Notifications';
+import Reports from '../pages/Reports';
 import UsersPage from '../pages/Users';
+import SystemSettings from '../pages/Settings';
 import Login from '../pages/Login';
 import NotFound from '../pages/NotFound';
 
 /**
  * Central route table.
  *
- * Feature routes (departments, courses, scheduling, ...) are added in later
- * phases. The guard components are already wired so those routes can be
- * protected consistently.
+ * Every sidebar entry resolves to a registered route. Dashboard and Users &
+ * Roles render implemented pages; the remaining modules render honest
+ * placeholder pages until their phases land. All authenticated routes sit
+ * behind <PrivateRoute> + <DashboardLayout>; Users & Roles is additionally
+ * admin-only through <RoleRoute> (the server enforces this too).
  */
 export default function AppRoutes() {
   return (
@@ -29,7 +43,26 @@ export default function AppRoutes() {
       >
         <Route path="/" element={<Dashboard />} />
 
-        {/* Phase 2 — user management (admin only; server enforces it too). */}
+        {/* Academic */}
+        <Route path="/departments" element={<Departments />} />
+        <Route path="/courses" element={<Courses />} />
+        <Route path="/students" element={<Students />} />
+        <Route path="/instructors" element={<Instructors />} />
+
+        {/* Facilities */}
+        <Route path="/rooms" element={<Rooms />} />
+        <Route path="/time-slots" element={<TimeSlots />} />
+
+        {/* Scheduling */}
+        <Route path="/schedule" element={<Schedule />} />
+        <Route path="/conflicts" element={<Conflicts />} />
+        <Route path="/invigilation" element={<Invigilation />} />
+
+        {/* Administration */}
+        <Route path="/notifications" element={<Notifications />} />
+        <Route path="/reports" element={<Reports />} />
+
+        {/* Users & Roles — admin only; server enforces it too. */}
         <Route
           path="/users"
           element={
@@ -38,6 +71,7 @@ export default function AppRoutes() {
             </RoleRoute>
           }
         />
+        <Route path="/settings" element={<SystemSettings />} />
 
         {/* Example of a role-guarded route, ready for Phase 6 onward. */}
         <Route

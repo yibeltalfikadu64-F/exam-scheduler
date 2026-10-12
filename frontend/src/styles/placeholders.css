@@ -1,0 +1,47 @@
+/* ============================================================
+   Feature-module placeholders.
+   Honest, design-consistent stand-ins for modules whose UI/CRUD is not
+   built yet. Builds on the shared tokens (variables.css), themes and the
+   primitives in global.css (panel, badge, prototype-banner…).
+   ============================================================ */
+
+.module-feature-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4) var(--space-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.module-feature-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+
+.module-feature-dot {
+  flex: 0 0 auto;
+  margin-top: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
+
+.module-placeholder-note {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-color);
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 720px) {
+  .module-feature-list {
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+  }
+}

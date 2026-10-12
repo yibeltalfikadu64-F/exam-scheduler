@@ -9,7 +9,19 @@ import { toggleCollapsed, toggleSidebar } from '../../store/slices/uiSlice';
 
 const PAGE_TITLES = {
   '/': { title: 'Dashboard', subtitle: 'Exam schedule overview' },
+  '/departments': { title: 'Departments & Programs', subtitle: 'Faculties, departments and programs' },
+  '/courses': { title: 'Courses & Sections', subtitle: 'Course catalogue and sections' },
+  '/students': { title: 'Students & Enrollments', subtitle: 'Student records and enrolments' },
+  '/instructors': { title: 'Instructors & Duties', subtitle: 'Teaching staff and invigilation' },
+  '/rooms': { title: 'Buildings & Rooms', subtitle: 'Facilities and capacity' },
+  '/time-slots': { title: 'Time Slots & Periods', subtitle: 'Exam periods and daily sessions' },
+  '/schedule': { title: 'Schedule Calendar', subtitle: 'Exam timetable' },
+  '/conflicts': { title: 'Conflicts', subtitle: 'Constraint violations' },
+  '/invigilation': { title: 'Invigilation', subtitle: 'Duty assignment and rosters' },
+  '/notifications': { title: 'Notifications', subtitle: 'Alerts and preferences' },
+  '/reports': { title: 'Reports & Analytics', subtitle: 'Insights and exports' },
   '/users': { title: 'Users & Roles', subtitle: 'Accounts and permissions' },
+  '/settings': { title: 'System Settings', subtitle: 'Configuration and defaults' },
   '/admin': { title: 'Administration', subtitle: 'Restricted area' },
 };
 

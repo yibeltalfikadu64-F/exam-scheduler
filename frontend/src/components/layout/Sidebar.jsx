@@ -21,9 +21,10 @@ import { useAuth } from '../../context/AuthContext';
 /**
  * Sidebar navigation.
  *
- * Only the Dashboard route exists in Phase 4. The remaining items are shown
- * as explicitly DISABLED (with a "Soon" tag) so nothing looks clickable while
- * leading nowhere — they become real links as their phases land.
+ * Every entry links to a registered route. Implemented modules (Dashboard,
+ * Users & Roles) render real pages; the remaining modules route to clear
+ * placeholder pages until their phases land. `roles` still restricts an item
+ * to specific account roles, mirroring the server-side authorization.
  */
 const NAV_SECTIONS = [
   {
@@ -33,34 +34,34 @@ const NAV_SECTIONS = [
   {
     label: 'Academic',
     items: [
-      { label: 'Departments & Programs', icon: Building2 },
-      { label: 'Courses & Sections', icon: BookOpen },
-      { label: 'Students & Enrollments', icon: GraduationCap },
-      { label: 'Instructors & Duties', icon: Users },
+      { label: 'Departments & Programs', to: '/departments', icon: Building2 },
+      { label: 'Courses & Sections', to: '/courses', icon: BookOpen },
+      { label: 'Students & Enrollments', to: '/students', icon: GraduationCap },
+      { label: 'Instructors & Duties', to: '/instructors', icon: Users },
     ],
   },
   {
     label: 'Facilities',
     items: [
-      { label: 'Buildings & Rooms', icon: DoorOpen },
-      { label: 'Time Slots & Periods', icon: CalendarClock },
+      { label: 'Buildings & Rooms', to: '/rooms', icon: DoorOpen },
+      { label: 'Time Slots & Periods', to: '/time-slots', icon: CalendarClock },
     ],
   },
   {
     label: 'Scheduling',
     items: [
-      { label: 'Schedule Calendar', icon: CalendarDays },
-      { label: 'Conflicts', icon: AlertTriangle },
-      { label: 'Invigilation', icon: ClipboardCheck },
+      { label: 'Schedule Calendar', to: '/schedule', icon: CalendarDays },
+      { label: 'Conflicts', to: '/conflicts', icon: AlertTriangle },
+      { label: 'Invigilation', to: '/invigilation', icon: ClipboardCheck },
     ],
   },
   {
     label: 'Administration',
     items: [
-      { label: 'Notifications', icon: Bell },
-      { label: 'Reports & Analytics', icon: BarChart3 },
-      { label: 'Users & Roles', icon: ShieldCheck, to: '/users', roles: ['admin'] },
-      { label: 'System Settings', icon: Settings },
+      { label: 'Notifications', to: '/notifications', icon: Bell },
+      { label: 'Reports & Analytics', to: '/reports', icon: BarChart3 },
+      { label: 'Users & Roles', to: '/users', icon: ShieldCheck, roles: ['admin'] },
+      { label: 'System Settings', to: '/settings', icon: Settings },
     ],
   },
 ];
@@ -90,21 +91,6 @@ export default function Sidebar({ open = false }) {
                 .map((item) => {
                   const Icon = item.icon;
 
-                  if (item.disabled || !item.to) {
-                    return (
-                      <span
-                        key={item.label}
-                        className="nav-item is-disabled"
-                        title="This module is added in a later phase"
-                        aria-disabled="true"
-                      >
-                        <Icon size={18} />
-                        <span className="nav-item-label">{item.label}</span>
-                        <span className="nav-item-tag">Soon</span>
-                      </span>
-                    );
-                  }
-
                   return (
                     <NavLink
                       key={item.label}
@@ -124,7 +110,7 @@ export default function Sidebar({ open = false }) {
 
       <div className="sidebar-footer">
         <div>Version 1.0.0</div>
-        <div style={{ opacity: 0.7 }}>Phase 2 · users &amp; roles</div>
+        <div style={{ opacity: 0.7 }}>All modules navigable · CRUD in progress</div>
       </div>
     </aside>
   );

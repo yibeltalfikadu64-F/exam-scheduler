@@ -28,6 +28,9 @@ function createPool() {
     queueLimit: config.db.queueLimit,
     charset: 'utf8mb4_unicode_ci',
     timezone: 'Z',
+    // DATE has no time component; return it as 'YYYY-MM-DD' instead of a Date
+    // (which would be shifted by the timezone). DATETIME/TIMESTAMP stay as Date.
+    dateStrings: ['DATE'],
     enableKeepAlive: true,
     keepAliveInitialDelay: 10000,
     decimalNumbers: true,
@@ -85,10 +88,35 @@ async function closePool() {
   logger.debug('MySQL pool closed.');
 }
 
+/**
+ * Run `handler(connection)` inside a database transaction.
+ * Commits on success, rolls back on any thrown error, always releases the
+ * connection. Use for multi-statement writes that must stay consistent.
+ */
+async function withTransaction(handler) {
+  const connection = await getPool().getConnection();
+  try {
+    await connection.beginTransaction();
+    const result = await handler(connection);
+    await connection.commit();
+    return result;
+  } catch (error) {
+    try {
+      await connection.rollback();
+    } catch (rollbackError) {
+      logger.warn(`Transaction rollback failed: ${rollbackError.message}`);
+    }
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
 module.exports = {
   createPool,
   getPool,
   testConnection,
   healthCheck,
   closePool,
+  withTransaction,
 };

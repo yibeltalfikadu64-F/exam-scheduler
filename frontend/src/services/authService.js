@@ -1,10 +1,10 @@
 import api from './api';
 
 /**
- * Authentication endpoints.
+ * Authentication endpoints (Phase 5).
  *
- * NOTE: the backend login endpoint is implemented in Phase 5. Until then the
- * call returns a 404 which the login page surfaces honestly.
+ * login() accepts { username | email, password } and resolves to the standard
+ * response envelope { success, message, data: { token, user, ... } }.
  */
 const authService = {
   login: (credentials) => api.post('/auth/login', credentials),

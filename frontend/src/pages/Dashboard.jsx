@@ -7,19 +7,17 @@ import ConflictAlerts from '../components/dashboard/ConflictAlerts';
 import BackendStatus from '../components/dashboard/BackendStatus';
 import { mockStats } from '../data/mockData';
 import healthService from '../services/healthService';
-import { useAuth } from '../context/AuthContext';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
 
 /**
  * Dashboard shell.
  *
- * - Stat cards, upcoming exams and conflicts use PROTOTYPE data (clearly
+ * - Stat cards, upcoming exams and conflicts use SAMPLE data (clearly
  *   labelled) until the feature APIs exist.
  * - The backend status panel is a LIVE call to /api/v1/health.
  */
 export default function Dashboard() {
-  const { isPrototype } = useAuth();
   const [health, setHealth] = useState({ state: 'loading', payload: null, error: null });
 
   const loadHealth = useCallback(async () => {
@@ -38,22 +36,20 @@ export default function Dashboard() {
 
   return (
     <div className="page">
-      {isPrototype ? (
-        <div className="prototype-banner">
-          <Info size={16} />
-          <span>
-            Prototype mode — the figures and lists on this page are sample data, not database records. The
-            <strong> Backend status</strong> panel is a live call to the API.
-          </span>
-        </div>
-      ) : null}
+      <div className="prototype-banner">
+        <Info size={16} />
+        <span>
+          The figures and lists below are sample data, not database records — the feature modules arrive in
+          later phases. The <strong>Backend status</strong> panel is a live call to the API.
+        </span>
+      </div>
 
       <div className="page-header">
         <div>
           <h2>Dashboard</h2>
           <p>Overview of the upcoming examination period.</p>
         </div>
-        <span className="badge badge-warning">Prototype data</span>
+        <span className="badge badge-warning">Sample data</span>
       </div>
 
       <div className="stats-grid stagger">
@@ -66,7 +62,7 @@ export default function Dashboard() {
         <section className="panel">
           <div className="panel-header">
             <h3>Upcoming exams</h3>
-            <span className="badge badge-neutral">Prototype data</span>
+            <span className="badge badge-neutral">Sample data</span>
           </div>
           <div className="panel-body">
             <UpcomingExams />
@@ -85,7 +81,7 @@ export default function Dashboard() {
           <section className="panel">
             <div className="panel-header">
               <h3>Schedule conflicts</h3>
-              <span className="badge badge-neutral">Prototype data</span>
+              <span className="badge badge-neutral">Sample data</span>
             </div>
             <ConflictAlerts />
           </section>

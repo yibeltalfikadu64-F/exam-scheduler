@@ -1,6 +1,7 @@
-import { useLocation } from 'react-router-dom';
+import { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { Bell, Menu, Moon, PanelLeftClose, PanelLeftOpen, Search, Sun } from 'lucide-react';
+import { Bell, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Search, Sun } from 'lucide-react';
 
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
@@ -8,6 +9,7 @@ import { toggleCollapsed, toggleSidebar } from '../../store/slices/uiSlice';
 
 const PAGE_TITLES = {
   '/': { title: 'Dashboard', subtitle: 'Exam schedule overview' },
+  '/users': { title: 'Users & Roles', subtitle: 'Accounts and permissions' },
   '/admin': { title: 'Administration', subtitle: 'Restricted area' },
 };
 
@@ -25,10 +27,22 @@ export default function Topbar() {
   const dispatch = useDispatch();
   const { sidebarCollapsed } = useSelector((state) => state.ui);
   const location = useLocation();
+  const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const [signingOut, setSigningOut] = useState(false);
 
   const heading = PAGE_TITLES[location.pathname] || { title: 'Exam Scheduler', subtitle: 'University administration' };
+
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    try {
+      await logout();
+    } finally {
+      setSigningOut(false);
+      navigate('/login', { replace: true });
+    }
+  };
 
   return (
     <header className="topbar">
@@ -101,6 +115,17 @@ export default function Topbar() {
             <span>{user?.role || 'guest'}</span>
           </span>
         </div>
+
+        <button
+          type="button"
+          className="btn btn-icon"
+          onClick={handleSignOut}
+          disabled={signingOut}
+          aria-label="Sign out"
+          title="Sign out"
+        >
+          <LogOut size={18} />
+        </button>
       </div>
     </header>
   );

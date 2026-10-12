@@ -16,6 +16,8 @@ import {
   Users,
 } from 'lucide-react';
 
+import { useAuth } from '../../context/AuthContext';
+
 /**
  * Sidebar navigation.
  *
@@ -57,13 +59,15 @@ const NAV_SECTIONS = [
     items: [
       { label: 'Notifications', icon: Bell },
       { label: 'Reports & Analytics', icon: BarChart3 },
-      { label: 'Users & Roles', icon: ShieldCheck },
+      { label: 'Users & Roles', icon: ShieldCheck, to: '/users', roles: ['admin'] },
       { label: 'System Settings', icon: Settings },
     ],
   },
 ];
 
 export default function Sidebar({ open = false }) {
+  const { user } = useAuth();
+
   return (
     <aside className={`sidebar ${open ? 'open' : ''}`} aria-label="Main navigation">
       <div className="sidebar-brand">
@@ -81,36 +85,38 @@ export default function Sidebar({ open = false }) {
           <div key={section.label}>
             <div className="sidebar-section-label">{section.label}</div>
             <div className="sidebar-nav">
-              {section.items.map((item) => {
-                const Icon = item.icon;
+              {section.items
+                .filter((item) => !item.roles || item.roles.includes(user?.role))
+                .map((item) => {
+                  const Icon = item.icon;
 
-                if (item.disabled || !item.to) {
+                  if (item.disabled || !item.to) {
+                    return (
+                      <span
+                        key={item.label}
+                        className="nav-item is-disabled"
+                        title="This module is added in a later phase"
+                        aria-disabled="true"
+                      >
+                        <Icon size={18} />
+                        <span className="nav-item-label">{item.label}</span>
+                        <span className="nav-item-tag">Soon</span>
+                      </span>
+                    );
+                  }
+
                   return (
-                    <span
+                    <NavLink
                       key={item.label}
-                      className="nav-item is-disabled"
-                      title="This module is added in a later phase"
-                      aria-disabled="true"
+                      to={item.to}
+                      end={item.end}
+                      className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
                     >
                       <Icon size={18} />
                       <span className="nav-item-label">{item.label}</span>
-                      <span className="nav-item-tag">Soon</span>
-                    </span>
+                    </NavLink>
                   );
-                }
-
-                return (
-                  <NavLink
-                    key={item.label}
-                    to={item.to}
-                    end={item.end}
-                    className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-                  >
-                    <Icon size={18} />
-                    <span className="nav-item-label">{item.label}</span>
-                  </NavLink>
-                );
-              })}
+                })}
             </div>
           </div>
         ))}
@@ -118,7 +124,7 @@ export default function Sidebar({ open = false }) {
 
       <div className="sidebar-footer">
         <div>Version 1.0.0</div>
-        <div style={{ opacity: 0.7 }}>Phase 4 · foundation</div>
+        <div style={{ opacity: 0.7 }}>Phase 2 · users &amp; roles</div>
       </div>
     </aside>
   );

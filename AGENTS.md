@@ -48,8 +48,8 @@ Do **not** swap MySQL for MongoDB, React for another framework, or introduce Typ
 | 2 | Backend foundation (Express, config, health, middleware) | ✅ done |
 | 3 | MySQL schema, migrations, seeds, DB + restricted user | ✅ done |
 | 4 | Frontend foundation + dashboard shell (base only) | ✅ done |
-| 5 | Authentication & authorization (login/logout, roles, audit) | ⏳ pending approval |
-| 6 | Feature modules (users → settings/audit) | ⏳ pending |
+| 5 | Authentication & RBAC (login/logout/me, JWT, roles, rate limiting) | ✅ done |
+| 6 | Feature modules (users → settings/audit) | 🟡 users module done |
 | 7 | Constraint-based scheduling engine | ⏳ pending |
 | 8 | Complete UI pages | ⏳ pending |
 | 9 | Imports/exports/notifications | ⏳ pending |

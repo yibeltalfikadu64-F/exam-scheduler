@@ -72,7 +72,34 @@ const config = {
     max: toInt(process.env.RATE_LIMIT_MAX_REQUESTS, 300),
   },
 
+  // Stricter limits for credential endpoints (login).
+  auth: {
+    loginWindowMs: toInt(process.env.AUTH_LOGIN_WINDOW_MS, 15 * 60 * 1000),
+    loginMaxAttempts: toInt(process.env.AUTH_LOGIN_MAX_ATTEMPTS, 10),
+  },
+
   logLevel: process.env.LOG_LEVEL || (isProduction ? 'info' : 'debug'),
+
+  // Optional SMTP configuration. Email delivery is only attempted when
+  // MAIL_ENABLED is true AND an SMTP host is set. Credentials are never logged
+  // or returned by any endpoint (see services/mailer.js).
+  mail: {
+    enabled: process.env.MAIL_ENABLED === 'true',
+    host: process.env.SMTP_HOST || '',
+    port: toInt(process.env.SMTP_PORT, 587),
+    secure: process.env.SMTP_SECURE === 'true',
+    user: process.env.SMTP_USER || '',
+    password: process.env.SMTP_PASSWORD || '',
+    fromName: process.env.MAIL_FROM_NAME || 'Exam Scheduler',
+    fromAddress: process.env.MAIL_FROM_ADDRESS || 'no-reply@exam-scheduler.local',
+  },
+
+  // Notification queue behaviour.
+  notifications: {
+    maxRetries: toInt(process.env.NOTIFICATION_MAX_RETRIES, 3),
+    retryBackoffMinutes: toInt(process.env.NOTIFICATION_RETRY_BACKOFF_MINUTES, 15),
+    dispatchBatchSize: toInt(process.env.NOTIFICATION_DISPATCH_BATCH_SIZE, 50),
+  },
 
   seed: {
     adminEmail: process.env.SEED_ADMIN_EMAIL || 'admin@exam-scheduler.local',

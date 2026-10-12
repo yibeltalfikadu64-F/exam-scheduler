@@ -4,6 +4,7 @@ import DashboardLayout from '../components/layout/DashboardLayout';
 import PrivateRoute from './PrivateRoute';
 import RoleRoute from './RoleRoute';
 import Dashboard from '../pages/Dashboard';
+import UsersPage from '../pages/Users';
 import Login from '../pages/Login';
 import NotFound from '../pages/NotFound';
 
@@ -27,6 +28,16 @@ export default function AppRoutes() {
         }
       >
         <Route path="/" element={<Dashboard />} />
+
+        {/* Phase 2 — user management (admin only; server enforces it too). */}
+        <Route
+          path="/users"
+          element={
+            <RoleRoute roles={['admin']}>
+              <UsersPage />
+            </RoleRoute>
+          }
+        />
 
         {/* Example of a role-guarded route, ready for Phase 6 onward. */}
         <Route

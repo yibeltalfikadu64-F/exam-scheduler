@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ArrowRight, BarChart3, CalendarClock, GraduationCap, Lock, ShieldCheck, User } from 'lucide-react';
+import { AlertCircle, ArrowRight, BarChart3, CalendarClock, GraduationCap, Lock, ShieldCheck, User } from 'lucide-react';
 
 import { useAuth } from '../context/AuthContext';
 
@@ -13,18 +13,20 @@ const schema = z.object({
   remember: z.boolean().optional(),
 });
 
+const WARNING_KINDS = new Set(['rate-limited', 'forbidden']);
+
 /**
  * Login page.
  *
- * The form is fully validated client-side. Submitting performs a REAL call to
- * POST /auth/login — which currently returns 404 because authentication is
- * implemented in Phase 5. That is surfaced honestly rather than faked.
+ * Submits to the real POST /auth/login endpoint and surfaces every outcome
+ * honestly: loading, invalid credentials, inactive account, network failure and
+ * server error. It never reports success when the API fails.
  */
 export default function Login() {
-  const { login, isLoading, isPrototype } = useAuth();
+  const { login, isLoading, isAuthenticated, isReady } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [serverError, setServerError] = useState(null);
+  const [error, setError] = useState(null);
 
   const redirectTo = location.state?.from?.pathname || '/';
 
@@ -38,14 +40,23 @@ export default function Login() {
   });
 
   const onSubmit = async (values) => {
-    setServerError(null);
-    const result = await login({ username: values.username, password: values.password });
+    setError(null);
+    const result = await login({
+      username: values.username,
+      password: values.password,
+      persist: Boolean(values.remember),
+    });
     if (result.ok) {
       navigate(redirectTo, { replace: true });
     } else {
-      setServerError(result.message);
+      setError({ kind: result.kind, message: result.message });
     }
   };
+
+  // Already signed in (e.g. navigating back to /login) — send them through.
+  if (isReady && isAuthenticated) {
+    return <Navigate to={redirectTo} replace />;
+  }
 
   return (
     <div className="login-page">
@@ -90,21 +101,20 @@ export default function Login() {
             </div>
           </div>
 
-          <div className="notice notice-info">
-            Authentication is enabled in Phase 5. The form below already validates input and calls the real
-            API; because the endpoint does not exist yet it returns a clear message.
-          </div>
-
-          {serverError ? (
-            <div className="notice notice-danger" role="alert">
-              {serverError}
+          {error ? (
+            <div
+              className={`notice ${WARNING_KINDS.has(error.kind) ? 'notice-warning' : 'notice-danger'}`}
+              role="alert"
+            >
+              <AlertCircle size={16} />
+              <span>{error.message}</span>
             </div>
           ) : null}
 
           <form onSubmit={handleSubmit(onSubmit)} noValidate>
             <div className="field">
               <label className="field-label" htmlFor="username">
-                Username
+                Username or email
               </label>
               <div className="search-box" style={{ width: '100%' }}>
                 <User size={16} />
@@ -146,30 +156,32 @@ export default function Login() {
               </label>
               <span
                 className="text-sm text-muted"
-                style={{ cursor: 'not-allowed' }}
-                title="Password reset is added in Phase 5"
+                title="Password reset will be available in a later phase"
               >
-                Forgot password?
+                Forgot password? (coming later)
               </span>
             </div>
 
             <button type="submit" className="btn btn-primary" disabled={isLoading}>
               {isLoading ? 'Signing in…' : 'Sign in'} <ArrowRight size={16} />
             </button>
-
-            {isPrototype ? (
-              <>
-                <div className="divider">or</div>
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  onClick={() => navigate('/', { replace: true })}
-                >
-                  Preview dashboard with prototype data
-                </button>
-              </>
-            ) : null}
           </form>
+
+          <details className="text-xs text-muted" style={{ marginTop: 16 }}>
+            <summary style={{ cursor: 'pointer' }}>Development seed accounts</summary>
+            <p style={{ marginTop: 8 }}>
+              Local development only — change these before any real deployment.
+            </p>
+            <ul style={{ marginTop: 4, paddingLeft: 18 }}>
+              <li>
+                <code>admin</code> / <code>Admin@12345</code> — administrator
+              </li>
+              <li>
+                <code>registrar</code>, <code>head_cs</code>, <code>instructor1</code>, <code>instructor2</code>,{' '}
+                <code>student1</code> / <code>Demo@12345</code>
+              </li>
+            </ul>
+          </details>
 
           <div className="text-xs text-muted" style={{ textAlign: 'center' }}>
             Back to <Link to="/">dashboard</Link>

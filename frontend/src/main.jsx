@@ -14,6 +14,7 @@ import './styles/themes/light.css';
 import './styles/themes/dark.css';
 import './styles/global.css';
 import './styles/animations.css';
+import './styles/users.css';
 import './styles/responsive.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -21,7 +22,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <Provider store={store}>
       <ThemeProvider>
         <AuthProvider>
-          <BrowserRouter>
+          {/* Opt in to the v7 behaviours now to silence the v6 deprecation
+              warnings (react-router-dom ^6.30.x supports both flags). */}
+          <BrowserRouter
+            future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+          >
             <App />
           </BrowserRouter>
         </AuthProvider>

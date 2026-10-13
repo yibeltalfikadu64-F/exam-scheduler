@@ -15,7 +15,7 @@ import Schedule from '../pages/Schedule';
 import Conflicts from '../pages/Conflicts';
 import Invigilation from '../pages/Invigilation';
 import Notifications from '../pages/Notifications';
-import Reports from '../pages/Reports';
+import ReportsAnalytics from '../pages/ReportsAnalytics';
 import UsersPage from '../pages/Users';
 import SystemSettings from '../pages/Settings';
 import Login from '../pages/Login';
@@ -62,7 +62,7 @@ export default function AppRoutes() {
 
         {/* Administration */}
         <Route path="/notifications" element={<Notifications />} />
-        <Route path="/reports" element={<Reports />} />
+        <Route path="/reports" element={<ReportsAnalytics />} />
 
         {/* Users & Roles — admin only; server enforces it too. */}
         <Route

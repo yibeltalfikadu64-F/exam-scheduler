@@ -1,0 +1,153 @@
+
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { BookOpen, RefreshCw, Search } from 'lucide-react';
+import courseService from '../services/courseService';
+
+function getCourses(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.data?.items)) return payload.data.items;
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.courses)) return payload.courses;
+  if (Array.isArray(payload?.data?.courses)) return payload.data.courses;
+  return [];
+}
+
+export default function Courses() {
+  const [courses, setCourses] = useState([]);
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const loadCourses = useCallback(async () => {
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await courseService.list({ limit: 100 });
+      setCourses(getCourses(response));
+    } catch (err) {
+      setError(err?.message || 'Unable to load courses. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCourses();
+  }, [loadCourses]);
+
+  const filteredCourses = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return courses;
+
+    return courses.filter((course) =>
+      `${course.code || ''} ${course.title || ''}`
+        .toLowerCase()
+        .includes(term),
+    );
+  }, [courses, search]);
+
+  return (
+    <main className="courses-page">
+      <header className="page-header">
+        <div>
+          <h1>
+            <BookOpen size={25} aria-hidden="true" /> Courses
+          </h1>
+          <p>Browse and manage the university course catalogue.</p>
+        </div>
+
+        <button
+          type="button"
+          onClick={loadCourses}
+          disabled={loading}
+          className="btn btn-secondary"
+        >
+          <RefreshCw size={16} aria-hidden="true" />
+          {loading ? 'Loading…' : 'Refresh'}
+        </button>
+      </header>
+
+      <section className="courses-panel">
+        <div className="courses-toolbar">
+          <label className="courses-search">
+            <Search size={18} aria-hidden="true" />
+            <span className="sr-only">Search courses</span>
+            <input
+              type="search"
+              placeholder="Search by course code or title…"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </label>
+
+          <span className="courses-count">
+            {filteredCourses.length} course
+            {filteredCourses.length === 1 ? '' : 's'}
+          </span>
+        </div>
+
+        {error && (
+          <div className="courses-error" role="alert">
+            <p>{error}</p>
+            <button type="button" onClick={loadCourses}>
+              Try again
+            </button>
+          </div>
+        )}
+
+        {loading ? (
+          <p className="courses-state" role="status">Loading courses…</p>
+        ) : !error && filteredCourses.length === 0 ? (
+          <p className="courses-state">
+            {search ? 'No courses match your search.' : 'No courses found.'}
+          </p>
+        ) : !error ? (
+          <div className="courses-table-wrapper">
+            <table className="courses-table">
+              <thead>
+                <tr>
+                  <th scope="col">Code</th>
+                  <th scope="col">Course title</th>
+                  <th scope="col">Department</th>
+                  <th scope="col">Program</th>
+                  <th scope="col">Credits</th>
+                  <th scope="col">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredCourses.map((course) => (
+                  <tr key={course.id ?? course.uuid ?? course.code}>
+                    <td>{course.code || '—'}</td>
+                    <td>{course.title || '—'}</td>
+                    <td>
+                      {course.department?.name ||
+                        course.departmentName ||
+                        '—'}
+                    </td>
+                    <td>
+                      {course.program?.name || course.programName || '—'}
+                    </td>
+                    <td>{course.credits ?? '—'}</td>
+                    <td>
+                      <span
+                        className={
+                          course.isActive
+                            ? 'status-badge status-active'
+                            : 'status-badge status-inactive'
+                        }
+                      >
+                        {course.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+      </section>
+    </main>
+  );
+}

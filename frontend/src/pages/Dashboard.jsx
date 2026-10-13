@@ -1,6 +1,6 @@
 
 import { useCallback, useEffect, useState } from 'react';
-
+import './Dashboard.css';
 import StatCard from '../components/dashboard/StatCard';
 import UpcomingExams from '../components/dashboard/UpcomingExams';
 import ConflictAlerts from '../components/dashboard/ConflictAlerts';

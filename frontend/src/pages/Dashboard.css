@@ -1,0 +1,608 @@
+/* =========================================
+   DASHBOARD PAGE — DARK & WHITE THEME
+========================================= */
+
+/* ---------- LIGHT (WHITE) THEME ---------- */
+.page,
+:root,
+[data-theme="light"] {
+    --primary: #4f46e5;
+    --primary-hover: #4338ca;
+    --primary-soft: #eef2ff;
+    --primary-ring: rgb(99 102 241 / 18%);
+
+    --text-primary: #111827;
+    --text-secondary: #6b7280;
+    --text-faint: #9ca3af;
+
+    --border: #e5e7eb;
+    --border-strong: #d1d5db;
+    --divider: #f1f5f9;
+
+    --surface: #ffffff;
+    --surface-hover: #fafaff;
+    --surface-muted: #f8fafc;
+    --background: #f8fafc;
+    --head: #f9fafb;
+
+    --success: #15803d;
+    --success-bg: #dcfce7;
+    --success-border: #bbf7d0;
+
+    --error: #dc2626;
+    --error-bg: #fef2f2;
+    --error-border: #fecaca;
+
+    --warning: #b45309;
+    --warning-bg: #fffbeb;
+    --warning-border: #fde68a;
+
+    --info: #2563eb;
+    --info-bg: #eff6ff;
+
+    --shadow-sm: 0 2px 7px rgb(15 23 42 / 4%);
+    --shadow-md: 0 8px 22px rgb(15 23 42 / 8%);
+    --shadow-lg: 0 25px 70px rgb(0 0 0 / 25%);
+
+    --radius-sm: 9px;
+    --radius-md: 13px;
+    --radius-lg: 16px;
+}
+
+/* ---------- DARK THEME ---------- */
+[data-theme="dark"],
+.dark {
+    --primary: #818cf8;
+    --primary-hover: #a5b4fc;
+    --primary-soft: #1e1b4b;
+    --primary-ring: rgb(129 140 248 / 22%);
+
+    --text-primary: #f1f3f9;
+    --text-secondary: #a0a7b8;
+    --text-faint: #6b7280;
+
+    --border: #2d3548;
+    --border-strong: #3f4a5e;
+    --divider: #232a3a;
+
+    --surface: #1a1f2e;
+    --surface-hover: #222839;
+    --surface-muted: #1e2333;
+    --background: #0f1219;
+    --head: #151a26;
+
+    --success: #86efac;
+    --success-bg: #14382a;
+    --success-border: #1e5238;
+
+    --error: #fca5a5;
+    --error-bg: #450a0a;
+    --error-border: #5a2226;
+
+    --warning: #fbbf24;
+    --warning-bg: #3d2f12;
+    --warning-border: #5a4418;
+
+    --info: #7cb8ff;
+    --info-bg: #16304d;
+
+    --shadow-sm: 0 2px 7px rgb(0 0 0 / 30%);
+    --shadow-md: 0 8px 22px rgb(0 0 0 / 45%);
+    --shadow-lg: 0 25px 70px rgb(0 0 0 / 70%);
+}
+
+/* =========================================
+   BASE PAGE
+========================================= */
+.page {
+    display: grid;
+    gap: 22px;
+    min-width: 0;
+    color: var(--text-primary);
+    transition: color .3s ease;
+}
+
+/* =========================================
+   PAGE HEADER
+========================================= */
+.page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+}
+
+.page-header h2 {
+    margin: 0 0 6px;
+    font-size: clamp(22px, 2.4vw, 28px);
+    font-weight: 750;
+    letter-spacing: -.6px;
+    line-height: 1.2;
+    background: linear-gradient(135deg, var(--text-primary), var(--primary));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+[data-theme="dark"] .page-header h2,
+.dark .page-header h2 {
+    background: linear-gradient(135deg, #ffffff, var(--primary));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.page-header p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+/* =========================================
+   BADGES
+========================================= */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 11px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .3px;
+    white-space: nowrap;
+    transition: transform .2s ease;
+}
+
+.badge:hover {
+    transform: scale(1.04);
+}
+
+.badge-neutral {
+    color: var(--text-secondary);
+    background: var(--surface-muted);
+    border-color: var(--border);
+}
+
+.badge-neutral::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
+/* =========================================
+   PANELS
+========================================= */
+.panel {
+    min-width: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    transition: background .3s ease, border-color .3s ease, box-shadow .3s ease;
+}
+
+.panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border);
+}
+
+.panel-header h3 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -.2px;
+}
+
+.panel-body {
+    padding: 20px;
+}
+
+/* =========================================
+   ALERT PANEL (dashboard error)
+========================================= */
+.panel[role="alert"] {
+    border-color: var(--error-border);
+    background: var(--error-bg);
+}
+
+.panel[role="alert"] .panel-body p {
+    margin: 0 0 14px;
+    color: var(--error);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.panel[role="alert"] .panel-body button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 15px;
+    color: #ffffff;
+    background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+    border: 0;
+    border-radius: var(--radius-sm);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 650;
+    cursor: pointer;
+    box-shadow: 0 3px 10px color-mix(in srgb, var(--primary) 30%, transparent);
+    transition: transform .15s ease, box-shadow .2s ease;
+}
+
+.panel[role="alert"] .panel-body button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--primary) 42%, transparent);
+}
+
+.panel[role="alert"] .panel-body button:active {
+    transform: translateY(1px);
+}
+
+/* =========================================
+   STATS GRID
+========================================= */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 17px;
+}
+
+.stat-card {
+    position: relative;
+    min-width: 0;
+    padding: 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    transition:
+        transform .25s ease,
+        box-shadow .25s ease,
+        border-color .25s ease;
+}
+
+.stat-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, transparent 55%, color-mix(in srgb, var(--primary) 10%, transparent));
+    opacity: 0;
+    transition: opacity .3s ease;
+    pointer-events: none;
+}
+
+.stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--border-strong);
+}
+
+.stat-card:hover::before {
+    opacity: 1;
+}
+
+.stat-value {
+    color: var(--text-primary);
+    font-size: clamp(24px, 2.5vw, 32px);
+    font-weight: 750;
+    line-height: 1.15;
+    letter-spacing: -.8px;
+    overflow-wrap: anywhere;
+}
+
+.stat-label {
+    margin-top: 10px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+/* =========================================
+   DASHBOARD GRID (main + sidebar)
+========================================= */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+    gap: 20px;
+}
+
+.stack {
+    display: grid;
+}
+
+.gap-5 {
+    gap: 20px;
+}
+
+/* =========================================
+   UPCOMING EXAMS (generic children polish)
+========================================= */
+.panel-body ul,
+.panel-body ol {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.panel-body ul li,
+.panel-body ol li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 13px 0;
+    border-bottom: 1px solid var(--divider);
+    font-size: 13px;
+    color: var(--text-primary);
+    transition: background .2s ease;
+}
+
+.panel-body ul li:last-child,
+.panel-body ol li:last-child {
+    border-bottom: 0;
+}
+
+.panel-body ul li:hover,
+.panel-body ol li:hover {
+    color: var(--primary);
+}
+
+/* =========================================
+   STAGGER ANIMATION
+========================================= */
+.stagger>* {
+    animation: dashboard-fade-up .45s cubic-bezier(.16, 1, .3, 1) both;
+}
+
+.stagger>*:nth-child(1) {
+    animation-delay: .02s;
+}
+
+.stagger>*:nth-child(2) {
+    animation-delay: .08s;
+}
+
+.stagger>*:nth-child(3) {
+    animation-delay: .14s;
+}
+
+.stagger>*:nth-child(4) {
+    animation-delay: .20s;
+}
+
+.stagger>*:nth-child(5) {
+    animation-delay: .26s;
+}
+
+.stagger>*:nth-child(6) {
+    animation-delay: .32s;
+}
+
+@keyframes dashboard-fade-up {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* =========================================
+   LOADING SKELETON (for stat cards)
+========================================= */
+.stat-card .stat-value:empty,
+.stat-card .stat-value:has(> .skeleton) {
+    color: transparent;
+}
+
+/* Optional shimmer for "Loading database data..." cards */
+.stat-card:has(.stat-label) .stat-value {
+    font-variant-numeric: tabular-nums;
+}
+
+/* =========================================
+   BACKEND STATUS (child component helper)
+========================================= */
+.backend-status {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    transition: background .3s ease, border-color .3s ease;
+}
+
+.backend-status-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--text-faint);
+    flex-shrink: 0;
+    transition: background .3s ease, box-shadow .3s ease;
+}
+
+.backend-status.state-online .backend-status-indicator {
+    background: #22c55e;
+    box-shadow: 0 0 0 4px color-mix(in srgb, #22c55e 25%, transparent);
+    animation: dashboard-pulse 2s ease-in-out infinite;
+}
+
+.backend-status.state-offline .backend-status-indicator {
+    background: #ef4444;
+    box-shadow: 0 0 0 4px color-mix(in srgb, #ef4444 25%, transparent);
+}
+
+.backend-status.state-loading .backend-status-indicator {
+    background: var(--primary);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 25%, transparent);
+    animation: dashboard-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes dashboard-pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: .65;
+        transform: scale(.9);
+    }
+}
+
+/* =========================================
+   CONFLICTS LIST (child component helper)
+========================================= */
+.conflict-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 13px 0;
+    border-bottom: 1px solid var(--divider);
+    font-size: 13px;
+    color: var(--text-primary);
+    line-height: 1.55;
+}
+
+.conflict-item:last-child {
+    border-bottom: 0;
+}
+
+.conflict-item::before {
+    content: "";
+    flex-shrink: 0;
+    width: 8px;
+    height: 8px;
+    margin-top: 6px;
+    border-radius: 50%;
+    background: var(--warning);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--warning) 25%, transparent);
+}
+
+/* =========================================
+   SCROLLBAR POLISH
+========================================= */
+.panel-body::-webkit-scrollbar {
+    width: 8px;
+}
+
+.panel-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.panel-body::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border-radius: 4px;
+}
+
+.panel-body::-webkit-scrollbar-thumb:hover {
+    background: var(--text-faint);
+}
+
+/* =========================================
+   RESPONSIVE — TABLETS
+========================================= */
+@media (max-width: 1100px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .dashboard-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+/* =========================================
+   RESPONSIVE — MOBILE
+========================================= */
+@media (max-width: 640px) {
+    .page {
+        gap: 16px;
+    }
+
+    .page-header {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .page-header h2 {
+        font-size: 22px;
+    }
+
+    .page-header p {
+        font-size: 13px;
+    }
+
+    .stats-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .stat-card {
+        padding: 14px;
+    }
+
+    .stat-value {
+        font-size: 22px;
+    }
+
+    .stat-label {
+        font-size: 11px;
+    }
+
+    .panel-header {
+        padding: 15px;
+    }
+
+    .panel-header h3 {
+        font-size: 14px;
+    }
+
+    .panel-body {
+        padding: 15px;
+    }
+
+    .dashboard-grid {
+        gap: 14px;
+    }
+
+    .gap-5 {
+        gap: 14px;
+    }
+}
+
+/* =========================================
+   REDUCED MOTION
+========================================= */
+@media (prefers-reduced-motion: reduce) {
+
+    .page *,
+    .page *::before,
+    .page *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}

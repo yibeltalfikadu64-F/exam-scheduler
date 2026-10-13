@@ -1,12 +1,19 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  BookOpen, RefreshCw, Search, Plus, Pencil, Power, X,
+  BookOpen,
+  RefreshCw,
+  Search,
+  Plus,
+  Pencil,
+  Power,
+  X,
 } from 'lucide-react';
+
 import courseService from '../services/courseService';
 import departmentService from '../services/departmentService';
 import programService from '../services/programService';
-import './Courses.css'
+import './Courses.css';
 
 const emptyForm = {
   departmentId: '',
@@ -20,62 +27,184 @@ const emptyForm = {
 
 function getItems(payload, keys = []) {
   if (Array.isArray(payload)) return payload;
+
   for (const key of keys) {
-    if (Array.isArray(payload?.[key])) return payload[key];
+    const candidates = [
+      payload?.[key],
+      payload?.data?.[key],
+      payload?.data?.data?.[key],
+    ];
+
+    const found = candidates.find(Array.isArray);
+    if (found) return found;
   }
-  if (Array.isArray(payload?.data)) return payload.data;
-  if (Array.isArray(payload?.data?.items)) return payload.data.items;
-  if (Array.isArray(payload?.items)) return payload.items;
-  if (Array.isArray(payload?.data?.data)) return payload.data.data;
-  return [];
+
+  const candidates = [
+    payload?.data,
+    payload?.data?.items,
+    payload?.items,
+    payload?.data?.data,
+    payload?.results,
+  ];
+
+  return candidates.find(Array.isArray) || [];
+}
+
+function getDepartmentId(item) {
+  return item?.id ?? item?.departmentId ?? item?.department_id ?? '';
+}
+
+function getDepartmentName(item) {
+  return (
+    item?.name ??
+    item?.departmentName ??
+    item?.department_name ??
+    item?.code ??
+    'Unnamed department'
+  );
+}
+
+function getProgramId(item) {
+  return item?.id ?? item?.programId ?? item?.program_id ?? '';
+}
+
+function getProgramName(item) {
+  return (
+    item?.name ??
+    item?.programName ??
+    item?.program_name ??
+    item?.code ??
+    'Unnamed program'
+  );
+}
+
+function getErrorMessage(error, fallback) {
+  const message = error?.message || fallback;
+  const details = error?.details;
+
+  if (Array.isArray(details)) {
+    const detailText = details
+      .map((item) =>
+        typeof item === 'string'
+          ? item
+          : item?.message || item?.msg || '',
+      )
+      .filter(Boolean)
+      .join(' ');
+
+    return detailText ? `${message} ${detailText}` : message;
+  }
+
+  if (typeof details === 'string' && details.trim()) {
+    return `${message} ${details}`;
+  }
+
+  return message;
 }
 
 export default function Courses() {
   const [courses, setCourses] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [programs, setPrograms] = useState([]);
+
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [departmentsLoading, setDepartmentsLoading] = useState(false);
+  const [programsLoading, setProgramsLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+
   const [error, setError] = useState('');
+  const [departmentsError, setDepartmentsError] = useState('');
   const [message, setMessage] = useState('');
+
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [showForm, setShowForm] = useState(false);
 
+  // Load courses.
   const loadCourses = useCallback(async () => {
     setLoading(true);
     setError('');
+
     try {
       const result = await courseService.list({ limit: 100 });
       setCourses(getItems(result, ['courses']));
     } catch (err) {
-      setError(err?.message || 'Could not load courses.');
+      console.error('Failed to load courses:', err);
+      setCourses([]);
+      setError(getErrorMessage(err, 'Could not load courses.'));
     } finally {
       setLoading(false);
     }
   }, []);
 
+  // Load departments.
   const loadDepartments = useCallback(async () => {
+    setDepartmentsLoading(true);
+    setDepartmentsError('');
+
     try {
       const result = await departmentService.options();
-      setDepartments(getItems(result, ['departments', 'options']));
+      const items = getItems(result, ['departments', 'options']);
+
+      setDepartments(items);
     } catch (err) {
-      setError(err?.message || 'Could not load departments.');
+      console.error('Failed to load departments:', err);
+      setDepartments([]);
+      setDepartmentsError(
+        getErrorMessage(err, 'Could not load departments.'),
+      );
+    } finally {
+      setDepartmentsLoading(false);
     }
   }, []);
 
+  // Load programs for a selected department.
   const loadPrograms = useCallback(async (departmentId) => {
     if (!departmentId) {
       setPrograms([]);
+      setProgramsLoading(false);
       return;
     }
+
+    setProgramsLoading(true);
+
     try {
       const result = await programService.options(departmentId);
-      setPrograms(getItems(result, ['programs', 'options']));
+      const items = getItems(result, ['programs', 'options']);
+
+      const filtered = items.filter((program) => {
+        const programDepartmentId =
+          program?.department?.id ??
+          program?.departmentId ??
+          program?.department_id;
+
+        if (
+          programDepartmentId === undefined ||
+          programDepartmentId === null ||
+          programDepartmentId === ''
+        ) {
+          return true;
+        }
+
+        return String(programDepartmentId) === String(departmentId);
+      });
+
+      const unique = Array.from(
+        new Map(
+          filtered
+            .filter((item) => getProgramId(item) !== '')
+            .map((item) => [String(getProgramId(item)), item]),
+        ).values(),
+      );
+
+      setPrograms(unique);
     } catch (err) {
+      console.error('Failed to load programs:', err);
       setPrograms([]);
-      setError(err?.message || 'Could not load programs.');
+      setError(getErrorMessage(err, 'Could not load programs.'));
+    } finally {
+      setProgramsLoading(false);
     }
   }, []);
 
@@ -88,34 +217,67 @@ export default function Courses() {
     loadPrograms(form.departmentId);
   }, [form.departmentId, loadPrograms]);
 
+  // Filter courses.
   const filteredCourses = useMemo(() => {
     const query = search.trim().toLowerCase();
+
     if (!query) return courses;
+
     return courses.filter((course) =>
-      `${course.code || ''} ${course.title || ''} ${course.department?.name || ''
-        }`.toLowerCase().includes(query),
+      [
+        course.code,
+        course.title,
+        course.department?.name,
+        course.departmentName,
+        course.department_name,
+        course.program?.name,
+        course.programName,
+        course.program_name,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+        .includes(query),
     );
   }, [courses, search]);
 
   function openCreate() {
     setEditing(null);
-    setForm(emptyForm);
+    setForm({ ...emptyForm });
+    setPrograms([]);
     setError('');
     setMessage('');
     setShowForm(true);
   }
 
   function openEdit(course) {
+    const departmentId = String(
+      course.department?.id ??
+      course.departmentId ??
+      course.department_id ??
+      '',
+    );
+
+    const programId = String(
+      course.program?.id ??
+      course.programId ??
+      course.program_id ??
+      '',
+    );
+
     setEditing(course);
+
     setForm({
-      departmentId: String(course.department?.id ?? course.departmentId ?? ''),
-      programId: String(course.program?.id ?? course.programId ?? ''),
+      departmentId,
+      programId,
       code: course.code || '',
       title: course.title || '',
       credits: course.credits ?? 3,
       description: course.description || '',
-      isActive: course.isActive ?? true,
+      isActive: course.isActive ?? course.is_active ?? true,
     });
+
+    setPrograms([]);
     setError('');
     setMessage('');
     setShowForm(true);
@@ -123,39 +285,87 @@ export default function Courses() {
 
   function changeField(event) {
     const { name, value, type, checked } = event.target;
+
     setForm((current) => ({
       ...current,
       [name]: type === 'checkbox' ? checked : value,
       ...(name === 'departmentId' ? { programId: '' } : {}),
     }));
+
+    if (name === 'departmentId') {
+      setPrograms([]);
+      setError('');
+    }
   }
 
+  // Create or update a course.
   async function submitForm(event) {
     event.preventDefault();
     setError('');
     setMessage('');
 
+    // Keep the entered course-code characters; only trim surrounding spaces.
+    const code = form.code.trim();
+    const title = form.title.trim();
+
     const payload = {
       departmentId: Number(form.departmentId),
       programId: form.programId ? Number(form.programId) : null,
-      code: form.code.trim().toUpperCase(),
-      title: form.title.trim(),
+      code,
+      title,
       credits: Number(form.credits),
       description: form.description.trim(),
       isActive: Boolean(form.isActive),
     };
 
-    if (!payload.departmentId || !payload.code || !payload.title) {
-      setError('Department, course code, and title are required.');
+    if (
+      !form.departmentId ||
+      !Number.isInteger(payload.departmentId) ||
+      payload.departmentId <= 0
+    ) {
+      setError('Please select a valid department.');
       return;
     }
-    if (!Number.isInteger(payload.credits) ||
-      payload.credits < 1 || payload.credits > 30) {
+
+    if (!code) {
+      setError('Course code is required.');
+      return;
+    }
+
+    if (code.length > 100) {
+      setError('Course code cannot exceed 100 characters.');
+      return;
+    }
+
+    if (!title) {
+      setError('Course Name is required.');
+      return;
+    }
+
+    if (title.length < 2 || title.length > 200) {
+      setError('Course Name must be between 2 and 200 characters.');
+      return;
+    }
+
+    if (
+      !Number.isInteger(payload.credits) ||
+      payload.credits < 1 ||
+      payload.credits > 30
+    ) {
       setError('Credits must be a whole number between 1 and 30.');
       return;
     }
 
+    if (
+      payload.programId !== null &&
+      (!Number.isInteger(payload.programId) || payload.programId <= 0)
+    ) {
+      setError('Please select a valid program or choose No program.');
+      return;
+    }
+
     setSaving(true);
+
     try {
       if (editing) {
         await courseService.update(editing.id, payload);
@@ -164,64 +374,134 @@ export default function Courses() {
         await courseService.create(payload);
         setMessage('Course created successfully.');
       }
+
       setShowForm(false);
       setEditing(null);
-      setForm(emptyForm);
+      setForm({ ...emptyForm });
+
       await loadCourses();
     } catch (err) {
-      setError(err?.message || 'Could not save the course.');
+      console.error('Create/update course failed:', err);
+      setError(getErrorMessage(err, 'Could not save the course.'));
     } finally {
       setSaving(false);
     }
   }
 
+  // Activate or deactivate a course.
   async function toggleStatus(course) {
-    const nextStatus = !course.isActive;
+    const isActive = course.isActive ?? course.is_active ?? true;
+    const nextStatus = !isActive;
     const action = nextStatus ? 'activate' : 'deactivate';
-    if (!window.confirm(`Are you sure you want to ${action} "${course.code}"?`)) {
+
+    if (
+      !window.confirm(
+        `Are you sure you want to ${action} "${course.code}"?`,
+      )
+    ) {
       return;
     }
 
     setError('');
     setMessage('');
+
     try {
       await courseService.setStatus(course.id, nextStatus);
-      setMessage(`Course ${action}d successfully.`);
+
+      setMessage(
+        nextStatus
+          ? 'Course activated successfully.'
+          : 'Course deactivated successfully.',
+      );
+
       await loadCourses();
     } catch (err) {
-      setError(err?.message || `Could not ${action} the course.`);
+      console.error('Failed to change course status:', err);
+      setError(getErrorMessage(err, `Could not ${action} the course.`));
     }
+  }
+
+  // Refresh all data.
+  async function refreshAll() {
+    setError('');
+    setMessage('');
+
+    await Promise.all([
+      loadCourses(),
+      loadDepartments(),
+      form.departmentId
+        ? loadPrograms(form.departmentId)
+        : Promise.resolve(),
+    ]);
   }
 
   return (
     <main className="courses-page">
       <header className="page-header">
         <div>
-          <h1><BookOpen size={25} /> Courses</h1>
+          <h1>
+            <BookOpen size={25} />
+            Courses
+          </h1>
           <p>Manage the university course catalogue.</p>
         </div>
+
         <div className="courses-actions">
-          <button type="button" className="btn btn-secondary"
-            onClick={loadCourses} disabled={loading}>
-            <RefreshCw size={16} /> Refresh
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={refreshAll}
+            disabled={loading || departmentsLoading}
+          >
+            <RefreshCw
+              size={16}
+              className={
+                loading || departmentsLoading ? 'spin' : ''
+              }
+            />
+            Refresh
           </button>
-          <button type="button" className="btn btn-primary" onClick={openCreate}>
-            <Plus size={16} /> Add course
+
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={openCreate}
+          >
+            <Plus size={16} />
+            Add course
           </button>
         </div>
       </header>
 
-      {error && <div className="courses-error" role="alert">{error}</div>}
-      {message && <div className="courses-success" role="status">{message}</div>}
+      {error && (
+        <div className="courses-error" role="alert">
+          {error}
+        </div>
+      )}
+
+      {message && (
+        <div className="courses-success" role="status">
+          {message}
+        </div>
+      )}
 
       {showForm && (
-        <section className="courses-panel" aria-labelledby="course-form-title">
+        <section
+          className="courses-panel"
+          aria-labelledby="course-form-title"
+        >
           <header className="courses-form-header">
             <h2 id="course-form-title">
               {editing ? 'Edit course' : 'Create course'}
             </h2>
-            <button type="button" className="btn btn-secondary"
-              onClick={() => setShowForm(false)} aria-label="Close form">
+
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setShowForm(false)}
+              aria-label="Close form"
+              disabled={saving}
+            >
               <X size={16} />
             </button>
           </header>
@@ -229,68 +509,190 @@ export default function Courses() {
           <form onSubmit={submitForm} className="courses-form">
             <label>
               Department *
-              <select name="departmentId" value={form.departmentId}
-                onChange={changeField} required>
-                <option value="">Select department</option>
-                {departments.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name || item.code}
-                  </option>
-                ))}
+
+              <select
+                name="departmentId"
+                value={form.departmentId}
+                onChange={changeField}
+                required
+                disabled={departmentsLoading}
+              >
+                <option value="">
+                  {departmentsLoading
+                    ? 'Loading departments...'
+                    : departments.length
+                      ? 'Select department'
+                      : 'No departments available'}
+                </option>
+
+                {departments.map((item, index) => {
+                  const id = getDepartmentId(item);
+
+                  return (
+                    <option
+                      key={id || `department-${index}`}
+                      value={id}
+                    >
+                      {getDepartmentName(item)}
+                    </option>
+                  );
+                })}
               </select>
+
+              {departmentsLoading && (
+                <small role="status">
+                  Loading departments from the server...
+                </small>
+              )}
+
+              {!departmentsLoading && departmentsError && (
+                <small role="alert">
+                  {departmentsError}{' '}
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={loadDepartments}
+                  >
+                    Try again
+                  </button>
+                </small>
+              )}
+
+              {!departmentsLoading &&
+                !departmentsError &&
+                departments.length === 0 && (
+                  <small>
+                    No departments were returned by the API.
+                    Check the database and department endpoint.
+                  </small>
+                )}
             </label>
 
             <label>
               Program (optional)
-              <select name="programId" value={form.programId}
-                onChange={changeField} disabled={!form.departmentId}>
-                <option value="">No program</option>
-                {programs.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name || item.code}
-                  </option>
-                ))}
+
+              <select
+                name="programId"
+                value={form.programId}
+                onChange={changeField}
+                disabled={!form.departmentId || programsLoading}
+              >
+                <option value="">
+                  {!form.departmentId
+                    ? 'Select a department first'
+                    : programsLoading
+                      ? 'Loading programs...'
+                      : 'No program'}
+                </option>
+
+                {programs.map((item, index) => {
+                  const id = getProgramId(item);
+
+                  return (
+                    <option
+                      key={id || `program-${index}`}
+                      value={id}
+                    >
+                      {getProgramName(item)}
+                    </option>
+                  );
+                })}
               </select>
             </label>
 
             <label>
               Course code *
-              <input name="code" value={form.code} onChange={changeField}
-                minLength={2} maxLength={20}
-                pattern="[A-Za-z0-9._-]{2,20}" required />
+
+              <input
+                name="code"
+                value={form.code}
+                onChange={changeField}
+                maxLength={100}
+                placeholder="e.g. SE/301 + Lab #1"
+                required
+              />
+
+              <small>
+                Special characters are allowed. Maximum 100 characters.
+              </small>
             </label>
 
             <label>
-              Course title *
-              <input name="title" value={form.title} onChange={changeField}
-                minLength={2} maxLength={200} required />
+              Course Name *
+
+              <input
+                name="title"
+                value={form.title}
+                onChange={changeField}
+                minLength={2}
+                maxLength={200}
+                placeholder="Enter course name"
+                required
+              />
             </label>
 
             <label>
               Credits *
-              <input type="number" name="credits" value={form.credits}
-                onChange={changeField} min="1" max="30" step="1" required />
+
+              <input
+                type="number"
+                name="credits"
+                value={form.credits}
+                onChange={changeField}
+                min="1"
+                max="30"
+                step="1"
+                required
+              />
             </label>
 
             <label className="courses-description">
               Description
-              <textarea name="description" value={form.description}
-                onChange={changeField} maxLength={2000} rows={3} />
+
+              <textarea
+                name="description"
+                value={form.description}
+                onChange={changeField}
+                maxLength={2000}
+                rows={3}
+                placeholder="Optional course description"
+              />
             </label>
 
             <label className="courses-checkbox">
-              <input type="checkbox" name="isActive" checked={form.isActive}
-                onChange={changeField} />
+              <input
+                type="checkbox"
+                name="isActive"
+                checked={form.isActive}
+                onChange={changeField}
+              />
               Active
             </label>
 
             <div className="courses-form-actions">
-              <button type="button" className="btn btn-secondary"
-                onClick={() => setShowForm(false)} disabled={saving}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setShowForm(false)}
+                disabled={saving}
+              >
                 Cancel
               </button>
-              <button type="submit" className="btn btn-primary" disabled={saving}>
-                {saving ? 'Saving…' : editing ? 'Save changes' : 'Create course'}
+
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={
+                  saving ||
+                  departmentsLoading ||
+                  departments.length === 0
+                }
+              >
+                {saving
+                  ? 'Saving...'
+                  : editing
+                    ? 'Save changes'
+                    : 'Create course'}
               </button>
             </div>
           </form>
@@ -302,52 +704,103 @@ export default function Courses() {
           <label className="courses-search">
             <Search size={18} />
             <span className="sr-only">Search courses</span>
-            <input type="search" placeholder="Search code, title, or department…"
-              value={search} onChange={(event) => setSearch(event.target.value)} />
+
+            <input
+              type="search"
+              placeholder="Search code, name, or department..."
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
           </label>
+
           <span>{filteredCourses.length} course(s)</span>
         </div>
 
         {loading ? (
-          <p className="courses-state" role="status">Loading courses…</p>
-        ) : !error && filteredCourses.length === 0 ? (
+          <p className="courses-state" role="status">
+            Loading courses...
+          </p>
+        ) : filteredCourses.length === 0 ? (
           <p className="courses-state">
-            {search ? 'No matching courses.' : 'No courses found. Add your first course.'}
+            {search
+              ? 'No matching courses.'
+              : 'No courses found. Add your first course.'}
           </p>
         ) : (
           <div className="courses-table-wrapper">
             <table className="courses-table">
               <thead>
                 <tr>
-                  <th>Code</th><th>Title</th><th>Department</th>
-                  <th>Program</th><th>Credits</th><th>Status</th><th>Actions</th>
+                  <th>Code</th>
+                  <th>Course Name</th>
+                  <th>Department</th>
+                  <th>Program</th>
+                  <th>Credits</th>
+                  <th>Status</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
+
               <tbody>
-                {filteredCourses.map((course) => (
-                  <tr key={course.id ?? course.uuid ?? course.code}>
-                    <td>{course.code || '—'}</td>
-                    <td>{course.title || '—'}</td>
-                    <td>{course.department?.name || course.departmentName || '—'}</td>
-                    <td>{course.program?.name || course.programName || '—'}</td>
-                    <td>{course.credits ?? '—'}</td>
-                    <td>{course.isActive ? 'Active' : 'Inactive'}</td>
-                    <td>
-                      <div className="courses-actions">
-                        <button type="button" className="btn btn-secondary"
-                          onClick={() => openEdit(course)} aria-label={`Edit ${course.code}`}>
-                          <Pencil size={15} /> Edit
-                        </button>
-                        <button type="button" className="btn btn-secondary"
-                          onClick={() => toggleStatus(course)}
-                          aria-label={`${course.isActive ? 'Deactivate' : 'Activate'} ${course.code}`}>
-                          <Power size={15} />
-                          {course.isActive ? 'Deactivate' : 'Activate'}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {filteredCourses.map((course) => {
+                  const isActive =
+                    course.isActive ?? course.is_active ?? true;
+
+                  return (
+                    <tr
+                      key={
+                        course.id ??
+                        course.uuid ??
+                        course.code
+                      }
+                    >
+                      <td>{course.code || '—'}</td>
+                      <td>{course.title || '—'}</td>
+
+                      <td>
+                        {course.department?.name ||
+                          course.departmentName ||
+                          course.department_name ||
+                          '—'}
+                      </td>
+
+                      <td>
+                        {course.program?.name ||
+                          course.programName ||
+                          course.program_name ||
+                          '—'}
+                      </td>
+
+                      <td>{course.credits ?? '—'}</td>
+                      <td>{isActive ? 'Active' : 'Inactive'}</td>
+
+                      <td>
+                        <div className="courses-actions">
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            onClick={() => openEdit(course)}
+                            aria-label={`Edit ${course.code}`}
+                          >
+                            <Pencil size={15} />
+                            Edit
+                          </button>
+
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            onClick={() => toggleStatus(course)}
+                            aria-label={`${isActive ? 'Deactivate' : 'Activate'
+                              } ${course.code}`}
+                          >
+                            <Power size={15} />
+                            {isActive ? 'Deactivate' : 'Activate'}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

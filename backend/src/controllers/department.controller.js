@@ -1,84 +1,183 @@
+
 'use strict';
 
 /**
- * Department controllers (Phase 3). Thin HTTP layer over department.service.
+ * Department controllers.
+ * Thin HTTP layer over department.service.
  */
 
 const asyncHandler = require('../utils/asyncHandler');
 const ApiResponse = require('../utils/ApiResponse');
 const ApiError = require('../utils/ApiError');
+
 const departmentService = require('../services/department.service');
 
+/**
+ * Validate and parse a department ID.
+ */
 function parseId(raw) {
   const id = Number(raw);
+
   if (!Number.isInteger(id) || id <= 0) {
-    throw ApiError.badRequest('Invalid department id.', { code: 'INVALID_ID' });
+    throw ApiError.badRequest(
+      'Invalid department id.',
+      { code: 'INVALID_ID' }
+    );
   }
+
   return id;
 }
 
+/**
+ * Request metadata for auditing.
+ */
 function requestMeta(req) {
-  return { ip: req.ip, userAgent: req.get('user-agent') };
+  return {
+    ip: req.ip,
+    userAgent: req.get('user-agent'),
+  };
 }
 
-/** GET /api/v1/departments */
-const list = asyncHandler(async (req, res) =>
-  ApiResponse.success(res, await departmentService.listDepartments(req.validated.query), 'Departments retrieved successfully.')
-);
+/**
+ * GET /api/v1/departments
+ * List departments.
+ */
+const list = asyncHandler(async (req, res) => {
+  const departments = await departmentService.listDepartments(
+    req.validated.query
+  );
 
-/** GET /api/v1/departments/options */
-const options = asyncHandler(async (req, res) =>
-  ApiResponse.success(res, { departments: await departmentService.listOptions() }, 'Department options retrieved.')
-);
-
-/** GET /api/v1/departments/:id */
-const getOne = asyncHandler(async (req, res) => {
-  const department = await departmentService.getPublicById(parseId(req.params.id));
-  if (!department) throw ApiError.notFound('Department not found.', { code: 'DEPARTMENT_NOT_FOUND' });
-  return ApiResponse.success(res, { department }, 'Department retrieved successfully.');
+  return ApiResponse.success(
+    res,
+    departments,
+    'Departments retrieved successfully.'
+  );
 });
 
-/** GET /api/v1/departments/:id/dependencies */
-const dependencies = asyncHandler(async (req, res) =>
-  ApiResponse.success(
-    res,
-    await departmentService.getDependencies(parseId(req.params.id)),
-    'Department dependencies retrieved.'
-  )
-);
+/**
+ * GET /api/v1/departments/options
+ * Return department options for dropdowns.
+ */
+const options = asyncHandler(async (req, res) => {
+  const departments = await departmentService.listOptions();
 
-/** POST /api/v1/departments */
-const create = asyncHandler(async (req, res) =>
-  ApiResponse.success(
+  return ApiResponse.success(
     res,
-    { department: await departmentService.createDepartment(req.body, req.user, requestMeta(req)) },
+    { departments },
+    'Department options retrieved successfully.'
+  );
+});
+
+/**
+ * GET /api/v1/departments/:id
+ * Retrieve one department.
+ */
+const getOne = asyncHandler(async (req, res) => {
+  const id = parseId(req.params.id);
+
+  const department = await departmentService.getPublicById(id);
+
+  if (!department) {
+    throw ApiError.notFound(
+      'Department not found.',
+      { code: 'DEPARTMENT_NOT_FOUND' }
+    );
+  }
+
+  return ApiResponse.success(
+    res,
+    { department },
+    'Department retrieved successfully.'
+  );
+});
+
+/**
+ * GET /api/v1/departments/:id/dependencies
+ * Retrieve related record counts.
+ */
+const dependencies = asyncHandler(async (req, res) => {
+  const id = parseId(req.params.id);
+
+  const result = await departmentService.getDependencies(id);
+
+  return ApiResponse.success(
+    res,
+    result,
+    'Department dependencies retrieved successfully.'
+  );
+});
+
+/**
+ * POST /api/v1/departments
+ * Create a department.
+ */
+const create = asyncHandler(async (req, res) => {
+  const department = await departmentService.createDepartment(
+    req.body,
+    req.user,
+    requestMeta(req)
+  );
+
+  return ApiResponse.success(
+    res,
+    { department },
     'Department created successfully.',
     201
-  )
-);
+  );
+});
 
-/** PATCH /api/v1/departments/:id */
-const update = asyncHandler(async (req, res) =>
-  ApiResponse.success(
+/**
+ * PATCH /api/v1/departments/:id
+ * Update a department.
+ */
+const update = asyncHandler(async (req, res) => {
+  const id = parseId(req.params.id);
+
+  const department = await departmentService.updateDepartment(
+    id,
+    req.body,
+    req.user,
+    requestMeta(req)
+  );
+
+  return ApiResponse.success(
     res,
-    { department: await departmentService.updateDepartment(parseId(req.params.id), req.body, req.user, requestMeta(req)) },
+    { department },
     'Department updated successfully.'
-  )
-);
+  );
+});
 
-/** PATCH /api/v1/departments/:id/status */
+/**
+ * PATCH /api/v1/departments/:id/status
+ * Activate or deactivate a department.
+ */
 const setStatus = asyncHandler(async (req, res) => {
+  const id = parseId(req.params.id);
+
   const department = await departmentService.setDepartmentStatus(
-    parseId(req.params.id),
+    id,
     req.body.isActive,
     req.user,
     requestMeta(req)
   );
+
+  const message = req.body.isActive
+    ? 'Department activated successfully.'
+    : 'Department deactivated successfully.';
+
   return ApiResponse.success(
     res,
     { department },
-    req.body.isActive ? 'Department activated successfully.' : 'Department deactivated successfully.'
+    message
   );
 });
 
-module.exports = { list, options, getOne, dependencies, create, update, setStatus };
+module.exports = {
+  list,
+  options,
+  getOne,
+  dependencies,
+  create,
+  update,
+  setStatus,
+};

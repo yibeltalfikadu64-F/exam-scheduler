@@ -17,7 +17,7 @@ import {
 
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import '../styles/invigilation.css';
+import './invigilation.css';
 
 /**
  * API response helpers.

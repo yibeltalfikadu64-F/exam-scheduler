@@ -1,25 +1,63 @@
+
 import api from './api';
 
 /**
  * Department API client.
  *
  * Endpoints:
- *   GET    /departments           list (search, status, pagination, sort)
- *   GET    /departments/options   dropdown options
- *   GET    /departments/:id      details
- *   GET    /departments/:id/dependencies  dependency counts
- *   POST   /departments           create
- *   PATCH  /departments/:id       update
- *   PATCH  /departments/:id/status  activate/deactivate
+ *   GET    /departments
+ *   GET    /departments/options
+ *   GET    /departments/:id
+ *   GET    /departments/:id/dependencies
+ *   POST   /departments
+ *   PATCH  /departments/:id
+ *   PATCH  /departments/:id/status
  */
 const departmentService = {
-  list: (params) => api.get('/departments', { params }),
-  options: () => api.get('/departments/options'),
-  get: (id) => api.get(`/departments/${id}`),
-  dependencies: (id) => api.get(`/departments/${id}/dependencies`),
-  create: (payload) => api.post('/departments', payload),
-  update: (id, payload) => api.patch(`/departments/${id}`, payload),
-  setStatus: (id, isActive) => api.patch(`/departments/${id}/status`, { isActive }),
+  /**
+   * Get the department catalogue.
+   * Supports search, status, pagination, and sorting.
+   */
+  list: (params = {}) =>
+    api.get('/departments', { params }),
+
+  /**
+   * Get departments for dropdowns.
+   * The backend options endpoint should return all departments
+   * that users are allowed to select.
+   */
+  options: () =>
+    api.get('/departments/options'),
+
+  /**
+   * Get one department by ID.
+   */
+  get: (id) =>
+    api.get(`/departments/${id}`),
+
+  /**
+   * Get dependency counts for a department.
+   */
+  dependencies: (id) =>
+    api.get(`/departments/${id}/dependencies`),
+
+  /**
+   * Create a department.
+   */
+  create: (payload) =>
+    api.post('/departments', payload),
+
+  /**
+   * Update a department.
+   */
+  update: (id, payload) =>
+    api.patch(`/departments/${id}`, payload),
+
+  /**
+   * Activate or deactivate a department.
+   */
+  setStatus: (id, isActive) =>
+    api.patch(`/departments/${id}/status`, { isActive }),
 };
 
 export default departmentService;

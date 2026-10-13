@@ -16,6 +16,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import api from '../services/api';
+import './Programs.css';
 
 const DEGREE_TYPES = [
   { value: 'bachelor', label: "Bachelor's Degree" },
@@ -35,7 +36,6 @@ const emptyForm = {
   isActive: true,
 };
 
-// Supports both the standard API envelope and an already-unwrapped response.
 function getPayload(response) {
   const body = response?.data ?? response;
   return body?.data ?? body;
@@ -43,24 +43,23 @@ function getPayload(response) {
 
 function getErrorMessage(error) {
   return (
-    error?.message ||
     error?.response?.data?.message ||
+    error?.message ||
     'Something went wrong. Please try again.'
   );
 }
 
 function StatCard({ icon: Icon, label, value }) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-      <div className="flex items-center justify-between">
+    <div className="program-stat-card">
+      <div className="program-stat-content">
         <div>
-          <p className="text-sm text-gray-500 dark:text-gray-400">{label}</p>
-          <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-white">
-            {value}
-          </p>
+          <div className="program-stat-label">{label}</div>
+          <div className="program-stat-value">{value}</div>
         </div>
-        <div className="rounded-lg bg-indigo-50 p-3 dark:bg-indigo-950">
-          <Icon className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+
+        <div className="program-stat-icon">
+          <Icon size={23} />
         </div>
       </div>
     </div>
@@ -70,6 +69,7 @@ function StatCard({ icon: Icon, label, value }) {
 export default function Programs() {
   const [programs, setPrograms] = useState([]);
   const [departments, setDepartments] = useState([]);
+
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
@@ -97,7 +97,12 @@ export default function Programs() {
     try {
       const response = await api.get('/departments/options');
       const payload = getPayload(response);
-      setDepartments(payload?.departments ?? []);
+
+      const list = Array.isArray(payload)
+        ? payload
+        : payload?.departments ?? payload?.items ?? [];
+
+      setDepartments(list);
     } catch (err) {
       setError(getErrorMessage(err));
     }
@@ -118,17 +123,25 @@ export default function Programs() {
       if (search.trim()) params.search = search.trim();
       if (departmentFilter) params.departmentId = departmentFilter;
       if (degreeFilter) params.degreeType = degreeFilter;
-      if (statusFilter !== '') params.isActive = statusFilter;
+
+      if (statusFilter !== '') {
+        params.isActive = statusFilter;
+      }
 
       const response = await api.get('/programs', { params });
       const payload = getPayload(response);
 
-      setPrograms(payload?.items ?? []);
+      const items = Array.isArray(payload)
+        ? payload
+        : payload?.items ?? payload?.programs ?? [];
+
+      setPrograms(items);
+
       setPagination(
         payload?.pagination ?? {
           page,
           limit: 10,
-          total: (payload?.items ?? []).length,
+          total: items.length,
           totalPages: 1,
         }
       );
@@ -162,8 +175,11 @@ export default function Programs() {
 
   const openEditModal = (program) => {
     setEditingProgram(program);
+
     setForm({
-      departmentId: String(program.department?.id ?? ''),
+      departmentId: String(
+        program.department?.id ?? program.departmentId ?? ''
+      ),
       code: program.code ?? '',
       name: program.name ?? '',
       degreeType: program.degreeType ?? 'bachelor',
@@ -171,12 +187,14 @@ export default function Programs() {
       description: program.description ?? '',
       isActive: Boolean(program.isActive),
     });
+
     setFormError('');
     setModalOpen(true);
   };
 
   const updateField = (event) => {
     const { name, value, type, checked } = event.target;
+
     setForm((current) => ({
       ...current,
       [name]: type === 'checkbox' ? checked : value,
@@ -185,6 +203,7 @@ export default function Programs() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+
     setSaving(true);
     setFormError('');
     setNotice('');
@@ -199,7 +218,7 @@ export default function Programs() {
       isActive: Boolean(form.isActive),
     };
 
-    if (!payload.departmentId) {
+    if (!payload.departmentId || !Number.isFinite(payload.departmentId)) {
       setFormError('Please select a department.');
       setSaving(false);
       return;
@@ -231,14 +250,19 @@ export default function Programs() {
       if (editingProgram) {
         await api.patch(`/programs/${editingProgram.id}`, payload);
         setNotice('Program updated successfully.');
+        setModalOpen(false);
+        await loadPrograms();
       } else {
         await api.post('/programs', payload);
         setNotice('Program created successfully.');
-        setPage(1);
-      }
+        setModalOpen(false);
 
-      setModalOpen(false);
-      await loadPrograms();
+        if (page !== 1) {
+          setPage(1);
+        } else {
+          await loadPrograms();
+        }
+      }
     } catch (err) {
       setFormError(getErrorMessage(err));
     } finally {
@@ -268,6 +292,7 @@ export default function Programs() {
       setNotice(
         `Program ${program.isActive ? 'deactivated' : 'activated'} successfully.`
       );
+
       await loadPrograms();
     } catch (err) {
       setError(getErrorMessage(err));
@@ -284,71 +309,72 @@ export default function Programs() {
     Number(pagination.totalPages) || 1
   );
 
-  const activeCount = programs.filter((item) => item.isActive).length;
-  const inactiveCount = programs.filter((item) => !item.isActive).length;
+  const activeCount = programs.filter(
+    (program) => program.isActive
+  ).length;
+
+  const inactiveCount = programs.length - activeCount;
+
+  const totalPrograms = pagination.total ?? programs.length;
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
-      {/* Page heading */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <div className="rounded-xl bg-indigo-100 p-3 dark:bg-indigo-950">
-              <BookOpen className="h-7 w-7 text-indigo-600 dark:text-indigo-400" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                Academic Programs
-              </h1>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Manage degree programs and their departments.
-              </p>
-            </div>
+    <main className="programs-page">
+      <header className="programs-header">
+        <div className="programs-heading">
+          <div className="programs-heading-icon">
+            <BookOpen size={27} />
+          </div>
+
+          <div>
+            <h1 className="programs-title">Academic Programs</h1>
+            <p className="programs-subtitle">
+              Manage degree programs and their departments.
+            </p>
           </div>
         </div>
 
         <button
           type="button"
+          className="program-btn program-btn-primary"
           onClick={openCreateModal}
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 font-medium text-white transition hover:bg-indigo-700"
         >
-          <Plus size={19} />
+          <Plus size={18} />
           Add Program
         </button>
-      </div>
+      </header>
 
-      {/* Notifications */}
       {error && (
-        <div
-          role="alert"
-          className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300"
-        >
-          <AlertCircle size={19} className="mt-0.5 shrink-0" />
-          <span className="flex-1">{error}</span>
-          <button type="button" onClick={() => setError('')} aria-label="Dismiss error">
+        <div className="program-alert program-alert-error" role="alert">
+          <AlertCircle size={19} />
+          <span>{error}</span>
+          <button
+            type="button"
+            onClick={() => setError('')}
+            aria-label="Dismiss error"
+          >
             <X size={18} />
           </button>
         </div>
       )}
 
       {notice && (
-        <div
-          role="status"
-          className="flex items-center justify-between rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700 dark:border-green-900 dark:bg-green-950 dark:text-green-300"
-        >
+        <div className="program-alert program-alert-success" role="status">
           <span>{notice}</span>
-          <button type="button" onClick={() => setNotice('')} aria-label="Dismiss message">
+          <button
+            type="button"
+            onClick={() => setNotice('')}
+            aria-label="Dismiss notification"
+          >
             <X size={18} />
           </button>
         </div>
       )}
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="program-stats-grid" aria-label="Program statistics">
         <StatCard
           icon={GraduationCap}
-          label="Programs found"
-          value={pagination.total ?? programs.length}
+          label="Total programs"
+          value={totalPrograms}
         />
         <StatCard
           icon={BookMarked}
@@ -365,192 +391,217 @@ export default function Programs() {
           label="Departments"
           value={departments.length}
         />
-      </div>
+      </section>
 
-      {/* Search and filters */}
-      <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <input
-              type="search"
-              value={search}
-              onChange={(event) =>
-                changeFilter(setSearch, event.target.value)
-              }
-              placeholder="Search code, name, description..."
-              className="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-10 pr-3 text-sm text-gray-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-            />
-          </div>
-
-          <select
-            value={departmentFilter}
+      <section className="program-filters" aria-label="Search and filters">
+        <div className="program-search">
+          <Search className="program-search-icon" size={17} />
+          <input
+            className="program-input"
+            type="search"
+            value={search}
             onChange={(event) =>
-              changeFilter(setDepartmentFilter, event.target.value)
+              changeFilter(setSearch, event.target.value)
             }
-            className="rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-          >
-            <option value="">All departments</option>
-            {departments.map((department) => (
-              <option key={department.id} value={department.id}>
-                {department.code} — {department.name}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={degreeFilter}
-            onChange={(event) =>
-              changeFilter(setDegreeFilter, event.target.value)
-            }
-            className="rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-          >
-            <option value="">All degree types</option>
-            {DEGREE_TYPES.map((degree) => (
-              <option key={degree.value} value={degree.value}>
-                {degree.label}
-              </option>
-            ))}
-          </select>
-
-          <div className="flex gap-2">
-            <select
-              value={statusFilter}
-              onChange={(event) =>
-                changeFilter(setStatusFilter, event.target.value)
-              }
-              className="min-w-0 flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-            >
-              <option value="">All statuses</option>
-              <option value="true">Active</option>
-              <option value="false">Inactive</option>
-            </select>
-
-            <button
-              type="button"
-              onClick={loadPrograms}
-              title="Refresh programs"
-              className="rounded-lg border border-gray-300 px-3 text-gray-600 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
-            >
-              <RefreshCw size={18} />
-            </button>
-          </div>
+            placeholder="Search programs..."
+            aria-label="Search programs"
+          />
         </div>
-      </div>
 
-      {/* Programs table */}
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
-        <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4 dark:border-gray-700">
-          <h2 className="font-semibold text-gray-900 dark:text-white">
-            Program directory
-          </h2>
-          <span className="text-sm text-gray-500 dark:text-gray-400">
-            {pagination.total ?? programs.length} total
+        <select
+          className="program-select"
+          value={departmentFilter}
+          onChange={(event) =>
+            changeFilter(setDepartmentFilter, event.target.value)
+          }
+          aria-label="Filter by department"
+        >
+          <option value="">All departments</option>
+          {departments.map((department) => (
+            <option key={department.id} value={department.id}>
+              {department.code
+                ? `${department.code} — ${department.name}`
+                : department.name}
+            </option>
+          ))}
+        </select>
+
+        <select
+          className="program-select"
+          value={degreeFilter}
+          onChange={(event) =>
+            changeFilter(setDegreeFilter, event.target.value)
+          }
+          aria-label="Filter by degree type"
+        >
+          <option value="">All degree types</option>
+          {DEGREE_TYPES.map((degree) => (
+            <option key={degree.value} value={degree.value}>
+              {degree.label}
+            </option>
+          ))}
+        </select>
+
+        <div className="program-filter-status">
+          <select
+            className="program-select"
+            value={statusFilter}
+            onChange={(event) =>
+              changeFilter(setStatusFilter, event.target.value)
+            }
+            aria-label="Filter by status"
+          >
+            <option value="">All statuses</option>
+            <option value="true">Active</option>
+            <option value="false">Inactive</option>
+          </select>
+
+          <button
+            type="button"
+            className="program-refresh-button"
+            onClick={loadPrograms}
+            title="Refresh programs"
+            aria-label="Refresh programs"
+            disabled={loading}
+          >
+            <RefreshCw
+              size={18}
+              className={loading ? 'program-loading-icon' : ''}
+            />
+          </button>
+        </div>
+      </section>
+
+      <section className="program-table-panel">
+        <div className="program-table-header">
+          <h2 className="program-table-title">Program directory</h2>
+          <span className="program-table-count">
+            {totalPrograms} total
           </span>
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center gap-3 p-12 text-gray-500">
-            <RefreshCw className="h-5 w-5 animate-spin" />
-            Loading programs...
+          <div className="program-state">
+            <RefreshCw
+              size={30}
+              className="program-state-icon program-loading-icon"
+            />
+            <h3 className="program-state-title">Loading programs</h3>
+            <p className="program-state-description">
+              Please wait while program data is retrieved.
+            </p>
           </div>
         ) : programs.length === 0 ? (
-          <div className="p-12 text-center">
-            <BookOpen className="mx-auto h-10 w-10 text-gray-300" />
-            <h3 className="mt-3 font-semibold text-gray-900 dark:text-white">
-              No programs found
-            </h3>
-            <p className="mt-1 text-sm text-gray-500">
+          <div className="program-state">
+            <BookOpen size={38} className="program-state-icon" />
+            <h3 className="program-state-title">No programs found</h3>
+            <p className="program-state-description">
               Try changing your filters or create a new program.
             </p>
+            <button
+              type="button"
+              className="program-btn program-btn-primary"
+              onClick={openCreateModal}
+            >
+              <Plus size={17} />
+              Add Program
+            </button>
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[850px] text-left text-sm">
-                <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500 dark:bg-gray-900 dark:text-gray-400">
+            <div className="program-table-wrapper">
+              <table className="program-table">
+                <thead>
                   <tr>
-                    <th className="px-5 py-3">Program</th>
-                    <th className="px-5 py-3">Department</th>
-                    <th className="px-5 py-3">Degree</th>
-                    <th className="px-5 py-3">Duration</th>
-                    <th className="px-5 py-3">Courses</th>
-                    <th className="px-5 py-3">Status</th>
-                    <th className="px-5 py-3 text-right">Actions</th>
+                    <th>Program</th>
+                    <th>Department</th>
+                    <th>Degree</th>
+                    <th>Duration</th>
+                    <th>Courses</th>
+                    <th>Status</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+
+                <tbody>
                   {programs.map((program) => (
-                    <tr
-                      key={program.id}
-                      className="transition hover:bg-gray-50 dark:hover:bg-gray-700/40"
-                    >
-                      <td className="px-5 py-4">
-                        <p className="font-semibold text-gray-900 dark:text-white">
+                    <tr key={program.id}>
+                      <td>
+                        <span className="program-name">
                           {program.name}
-                        </p>
-                        <p className="mt-1 text-xs text-gray-500">
+                        </span>
+                        <span className="program-code">
                           {program.code}
-                        </p>
+                        </span>
                       </td>
 
-                      <td className="px-5 py-4">
-                        <p className="text-gray-800 dark:text-gray-200">
-                          {program.department?.name ?? 'Not assigned'}
-                        </p>
+                      <td>
+                        <span className="program-department-name">
+                          {program.department?.name ??
+                            program.departmentName ??
+                            'Not assigned'}
+                        </span>
                         {program.department?.code && (
-                          <p className="mt-1 text-xs text-gray-500">
+                          <div className="program-muted">
                             {program.department.code}
-                          </p>
+                          </div>
                         )}
                       </td>
 
-                      <td className="px-5 py-4 text-gray-700 dark:text-gray-300">
+                      <td>
                         {DEGREE_TYPES.find(
                           (degree) => degree.value === program.degreeType
                         )?.label ?? program.degreeType ?? '—'}
                       </td>
 
-                      <td className="px-5 py-4 text-gray-700 dark:text-gray-300">
+                      <td>
                         {program.durationYears
                           ? `${program.durationYears} years`
                           : '—'}
                       </td>
 
-                      <td className="px-5 py-4 text-gray-700 dark:text-gray-300">
-                        {program.courseCount ?? 0}
-                      </td>
+                      <td>{program.courseCount ?? 0}</td>
 
-                      <td className="px-5 py-4">
+                      <td>
                         <span
-                          className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${program.isActive
-                            ? 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300'
-                            : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+                          className={`program-status ${program.isActive
+                              ? 'program-status-active'
+                              : 'program-status-inactive'
                             }`}
                         >
                           {program.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </td>
 
-                      <td className="px-5 py-4">
-                        <div className="flex justify-end gap-2">
+                      <td>
+                        <div className="program-actions">
                           <button
                             type="button"
+                            className="program-action-button program-action-edit"
                             onClick={() => openEditModal(program)}
                             title="Edit program"
-                            className="rounded-lg border border-gray-200 p-2 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                            aria-label={`Edit ${program.name}`}
                           >
                             <Pencil size={16} />
                           </button>
 
                           <button
                             type="button"
-                            onClick={() => toggleStatus(program)}
-                            title={program.isActive ? 'Deactivate program' : 'Activate program'}
-                            className={`rounded-lg border p-2 ${program.isActive
-                              ? 'border-gray-200 text-gray-600 hover:bg-red-50 hover:text-red-600 dark:border-gray-600 dark:text-gray-300'
-                              : 'border-green-200 text-green-700 hover:bg-green-50 dark:border-green-900 dark:text-green-300'
+                            className={`program-action-button ${program.isActive
+                                ? 'program-action-deactivate'
+                                : 'program-action-activate'
                               }`}
+                            onClick={() => toggleStatus(program)}
+                            title={
+                              program.isActive
+                                ? 'Deactivate program'
+                                : 'Activate program'
+                            }
+                            aria-label={
+                              program.isActive
+                                ? `Deactivate ${program.name}`
+                                : `Activate ${program.name}`
+                            }
                           >
                             <Power size={16} />
                           </button>
@@ -562,29 +613,33 @@ export default function Programs() {
               </table>
             </div>
 
-            {/* Pagination */}
-            <div className="flex flex-col gap-3 border-t border-gray-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-gray-700">
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+            <div className="program-pagination">
+              <p className="program-pagination-info">
                 Page {pagination.page ?? page} of {totalPages}
               </p>
 
-              <div className="flex gap-2">
+              <div className="program-pagination-actions">
                 <button
                   type="button"
+                  className="program-pagination-button"
                   disabled={page <= 1 || loading}
-                  onClick={() => setPage((current) => Math.max(1, current - 1))}
-                  className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-600 dark:text-white"
+                  onClick={() =>
+                    setPage((current) => Math.max(1, current - 1))
+                  }
                 >
                   <ChevronLeft size={16} />
                   Previous
                 </button>
+
                 <button
                   type="button"
+                  className="program-pagination-button"
                   disabled={page >= totalPages || loading}
                   onClick={() =>
-                    setPage((current) => Math.min(totalPages, current + 1))
+                    setPage((current) =>
+                      Math.min(totalPages, current + 1)
+                    )
                   }
-                  className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-600 dark:text-white"
                 >
                   Next
                   <ChevronRight size={16} />
@@ -593,88 +648,104 @@ export default function Programs() {
             </div>
           </>
         )}
-      </div>
+      </section>
 
-      {/* Create/edit modal */}
       {modalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4"
+          className="program-modal-overlay"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget && !saving) {
+            if (
+              event.target === event.currentTarget &&
+              !saving
+            ) {
               setModalOpen(false);
             }
           }}
         >
-          <div
+          <section
+            className="program-modal"
             role="dialog"
             aria-modal="true"
             aria-labelledby="program-modal-title"
-            className="my-auto max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl dark:bg-gray-800"
           >
-            <div className="sticky top-0 flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-700 dark:bg-gray-800">
+            <header className="program-modal-header">
               <div>
                 <h2
                   id="program-modal-title"
-                  className="text-xl font-bold text-gray-900 dark:text-white"
+                  className="program-modal-title"
                 >
                   {editingProgram ? 'Edit Program' : 'Create Program'}
                 </h2>
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="program-modal-description">
                   Enter the program's academic details.
                 </p>
               </div>
+
               <button
                 type="button"
+                className="program-modal-close"
                 disabled={saving}
                 onClick={() => setModalOpen(false)}
-                className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 disabled:opacity-50 dark:hover:bg-gray-700"
                 aria-label="Close dialog"
               >
                 <X size={20} />
               </button>
-            </div>
+            </header>
 
-            <form onSubmit={handleSubmit} className="space-y-5 p-6">
+            <form
+              className="program-modal-form"
+              onSubmit={handleSubmit}
+            >
               {formError && (
-                <div
-                  role="alert"
-                  className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300"
-                >
+                <div className="program-form-error" role="alert">
                   {formError}
                 </div>
               )}
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="sm:col-span-2">
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">
-                    Department <span className="text-red-500">*</span>
+              <div className="program-form-grid">
+                <div className="program-form-field program-form-field-full">
+                  <label
+                    className="program-form-label"
+                    htmlFor="program-department"
+                  >
+                    Department <span className="program-required">*</span>
                   </label>
+
                   <select
+                    id="program-department"
                     name="departmentId"
+                    className="program-select"
                     required
                     value={form.departmentId}
                     onChange={updateField}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white"
                   >
                     <option value="">Select department</option>
                     {departments.map((department) => (
                       <option key={department.id} value={department.id}>
-                        {department.code} — {department.name}
+                        {department.code
+                          ? `${department.code} — ${department.name}`
+                          : department.name}
                       </option>
                     ))}
                   </select>
+
                   {departments.length === 0 && (
-                    <p className="mt-1 text-xs text-amber-600">
-                      No department options are available. Check the Departments API.
+                    <p className="program-muted">
+                      No departments are available. Check the Departments API.
                     </p>
                   )}
                 </div>
 
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">
-                    Program code <span className="text-red-500">*</span>
+                <div className="program-form-field">
+                  <label
+                    className="program-form-label"
+                    htmlFor="program-code"
+                  >
+                    Program code <span className="program-required">*</span>
                   </label>
                   <input
+                    id="program-code"
+                    className="program-input"
                     name="code"
                     required
                     minLength={2}
@@ -682,18 +753,19 @@ export default function Programs() {
                     value={form.code}
                     onChange={updateField}
                     placeholder="e.g. BSC-CS"
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm uppercase dark:border-gray-600 dark:bg-gray-900 dark:text-white"
                   />
-                  <p className="mt-1 text-xs text-gray-500">
-                    2–20 letters, numbers, dots, underscores, or hyphens.
-                  </p>
                 </div>
 
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">
-                    Program name <span className="text-red-500">*</span>
+                <div className="program-form-field">
+                  <label
+                    className="program-form-label"
+                    htmlFor="program-name"
+                  >
+                    Program name <span className="program-required">*</span>
                   </label>
                   <input
+                    id="program-name"
+                    className="program-input"
                     name="name"
                     required
                     minLength={2}
@@ -701,20 +773,23 @@ export default function Programs() {
                     value={form.name}
                     onChange={updateField}
                     placeholder="e.g. Computer Science"
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white"
                   />
                 </div>
 
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">
-                    Degree type <span className="text-red-500">*</span>
+                <div className="program-form-field">
+                  <label
+                    className="program-form-label"
+                    htmlFor="program-degree"
+                  >
+                    Degree type <span className="program-required">*</span>
                   </label>
                   <select
+                    id="program-degree"
+                    className="program-select"
                     name="degreeType"
                     required
                     value={form.degreeType}
                     onChange={updateField}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white"
                   >
                     {DEGREE_TYPES.map((degree) => (
                       <option key={degree.value} value={degree.value}>
@@ -724,11 +799,16 @@ export default function Programs() {
                   </select>
                 </div>
 
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">
-                    Duration (years) <span className="text-red-500">*</span>
+                <div className="program-form-field">
+                  <label
+                    className="program-form-label"
+                    htmlFor="program-duration"
+                  >
+                    Duration (years) <span className="program-required">*</span>
                   </label>
                   <input
+                    id="program-duration"
+                    className="program-input"
                     name="durationYears"
                     type="number"
                     min="1"
@@ -737,66 +817,73 @@ export default function Programs() {
                     required
                     value={form.durationYears}
                     onChange={updateField}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white"
                   />
                 </div>
 
-                <div className="sm:col-span-2">
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">
+                <div className="program-form-field program-form-field-full">
+                  <label
+                    className="program-form-label"
+                    htmlFor="program-description"
+                  >
                     Description
                   </label>
                   <textarea
+                    id="program-description"
+                    className="program-textarea"
                     name="description"
                     rows={4}
                     maxLength={2000}
                     value={form.description}
                     onChange={updateField}
                     placeholder="Briefly describe the academic program..."
-                    className="w-full resize-y rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white"
                   />
                 </div>
 
-                <label className="flex items-center gap-3 sm:col-span-2">
-                  <input
-                    type="checkbox"
-                    name="isActive"
-                    checked={form.isActive}
-                    onChange={updateField}
-                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <span className="text-sm text-gray-700 dark:text-gray-200">
-                    Program is active
-                  </span>
-                </label>
+                <div className="program-form-field program-form-field-full">
+                  <label className="program-checkbox-row">
+                    <input
+                      type="checkbox"
+                      name="isActive"
+                      checked={form.isActive}
+                      onChange={updateField}
+                    />
+                    <span>Program is active</span>
+                  </label>
+                </div>
               </div>
 
-              <div className="flex flex-col-reverse gap-3 border-t border-gray-200 pt-5 sm:flex-row sm:justify-end dark:border-gray-700">
+              <footer className="program-modal-footer">
                 <button
                   type="button"
+                  className="program-btn program-btn-secondary"
                   disabled={saving}
                   onClick={() => setModalOpen(false)}
-                  className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
                 >
                   Cancel
                 </button>
 
                 <button
                   type="submit"
+                  className="program-btn program-btn-primary"
                   disabled={saving || departments.length === 0}
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {saving && <RefreshCw size={16} className="animate-spin" />}
+                  {saving && (
+                    <RefreshCw
+                      size={16}
+                      className="program-loading-icon"
+                    />
+                  )}
                   {saving
                     ? 'Saving...'
                     : editingProgram
                       ? 'Save Changes'
                       : 'Create Program'}
                 </button>
-              </div>
+              </footer>
             </form>
-          </div>
+          </section>
         </div>
       )}
-    </div>
+    </main>
   );
 }

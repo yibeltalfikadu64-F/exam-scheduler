@@ -1,0 +1,548 @@
+.settings-page {
+    --settings-bg: var(--background, #f5f7fb);
+    --settings-surface: var(--card, #ffffff);
+    --settings-text: var(--foreground, #172033);
+    --settings-muted: var(--muted-foreground, #68758a);
+    --settings-border: var(--border, #e2e8f0);
+    --settings-primary: var(--primary, #4f46e5);
+    max-width: 1500px;
+    margin: 0 auto;
+    padding: 30px;
+    color: var(--settings-text);
+}
+
+.settings-page * {
+    box-sizing: border-box;
+}
+
+.settings-header,
+.settings-heading,
+.settings-card-top,
+.settings-section-heading,
+.settings-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.settings-header {
+    margin-bottom: 25px;
+    flex-wrap: wrap;
+}
+
+.settings-heading {
+    justify-content: flex-start;
+}
+
+.settings-heading-icon,
+.settings-card-icon,
+.settings-detail-icon {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    border-radius: 14px;
+    color: var(--settings-primary);
+    background: color-mix(in srgb, var(--settings-primary) 11%, transparent);
+}
+
+.settings-heading-icon {
+    width: 56px;
+    height: 56px;
+}
+
+.settings-eyebrow,
+.settings-sidebar-label {
+    margin: 0 0 7px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    color: var(--settings-muted);
+}
+
+.settings-heading h1 {
+    margin: 0;
+    font-size: clamp(25px, 3vw, 34px);
+    letter-spacing: -0.8px;
+}
+
+.settings-subtitle {
+    margin: 7px 0 0;
+    color: var(--settings-muted);
+    font-size: 14px;
+}
+
+.settings-reset-button,
+.settings-back-button,
+.settings-view-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    border: 1px solid var(--settings-border);
+    border-radius: 10px;
+    background: var(--settings-surface);
+    color: var(--settings-text);
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 650;
+    transition: border-color 0.2s, background 0.2s, transform 0.2s;
+}
+
+.settings-reset-button {
+    padding: 11px 14px;
+}
+
+.settings-reset-button:hover,
+.settings-back-button:hover,
+.settings-view-button:hover {
+    border-color: var(--settings-primary);
+    transform: translateY(-1px);
+}
+
+.settings-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 13px;
+    padding: 17px 19px;
+    margin-bottom: 25px;
+    border: 1px solid #c7d2fe;
+    border-radius: 13px;
+    background: #eef2ff;
+    color: #3730a3;
+}
+
+.settings-notice>svg {
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.settings-notice strong {
+    font-size: 14px;
+}
+
+.settings-notice p {
+    margin: 5px 0 0;
+    color: #4338a6;
+    font-size: 13px;
+    line-height: 1.65;
+}
+
+.settings-feedback {
+    padding: 12px 15px;
+    border: 1px solid var(--settings-border);
+    border-radius: 10px;
+    font-size: 13px;
+}
+
+.settings-layout {
+    display: grid;
+    grid-template-columns: 255px minmax(0, 1fr);
+    align-items: start;
+    gap: 23px;
+}
+
+.settings-sidebar,
+.settings-content {
+    min-width: 0;
+    border: 1px solid var(--settings-border);
+    border-radius: 16px;
+    background: var(--settings-surface);
+}
+
+.settings-sidebar {
+    padding: 17px 12px;
+}
+
+.settings-sidebar-label {
+    padding: 0 10px;
+    margin: 5px 0 14px;
+}
+
+.settings-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    width: 100%;
+    margin-bottom: 5px;
+    padding: 12px 10px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--settings-muted);
+    text-align: left;
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+.settings-nav-item svg {
+    flex-shrink: 0;
+}
+
+.settings-nav-item:hover {
+    background: color-mix(in srgb, var(--settings-primary) 7%, transparent);
+    color: var(--settings-text);
+}
+
+.settings-nav-item.active {
+    background: color-mix(in srgb, var(--settings-primary) 12%, transparent);
+    color: var(--settings-primary);
+    font-weight: 750;
+}
+
+.settings-content {
+    padding: 25px;
+}
+
+.settings-section-heading {
+    align-items: flex-start;
+    margin-bottom: 22px;
+}
+
+.settings-section-heading h2,
+.settings-detail h2 {
+    margin: 0;
+    font-size: 21px;
+    letter-spacing: -0.4px;
+}
+
+.settings-section-heading p,
+.settings-detail>p {
+    margin: 8px 0 0;
+    color: var(--settings-muted);
+    font-size: 13px;
+    line-height: 1.65;
+}
+
+.settings-status,
+.settings-planned-badge,
+.settings-item-status {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 750;
+    white-space: nowrap;
+}
+
+.settings-status {
+    padding: 7px 10px;
+    color: #92400e;
+    background: #fef3c7;
+}
+
+.settings-planned-badge {
+    padding: 6px 9px;
+    color: #5b4bd8;
+    background: #eeebff;
+}
+
+.settings-cards {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.settings-card {
+    min-width: 0;
+    padding: 19px;
+    border: 1px solid var(--settings-border);
+    border-radius: 13px;
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+
+.settings-card:hover {
+    border-color: color-mix(in srgb, var(--settings-primary) 45%, var(--settings-border));
+    box-shadow: 0 8px 25px rgb(15 23 42 / 5%);
+    transform: translateY(-2px);
+}
+
+.settings-card-top {
+    align-items: center;
+}
+
+.settings-card-icon {
+    width: 43px;
+    height: 43px;
+    border-radius: 12px;
+}
+
+.settings-card h3 {
+    margin: 17px 0 8px;
+    font-size: 15px;
+}
+
+.settings-card>p {
+    min-height: 42px;
+    margin: 0;
+    color: var(--settings-muted);
+    font-size: 12px;
+    line-height: 1.7;
+}
+
+.settings-card ul {
+    display: grid;
+    gap: 8px;
+    margin: 17px 0;
+    padding-left: 18px;
+    color: var(--settings-muted);
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.settings-view-button {
+    justify-content: space-between;
+    width: 100%;
+    padding: 10px 12px;
+    margin-top: 3px;
+    color: var(--settings-primary);
+}
+
+.settings-detail {
+    max-width: 850px;
+}
+
+.settings-detail-icon {
+    width: 52px;
+    height: 52px;
+    margin-bottom: 18px;
+}
+
+.settings-detail>.settings-planned-badge {
+    margin-bottom: 13px;
+}
+
+.settings-detail h3 {
+    margin: 28px 0 13px;
+    font-size: 14px;
+}
+
+.settings-detail-list {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+    border: 1px solid var(--settings-border);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.settings-detail-list li,
+.settings-role-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+    padding: 15px;
+    border-bottom: 1px solid var(--settings-border);
+    font-size: 13px;
+}
+
+.settings-detail-list li:last-child,
+.settings-role-row:last-of-type {
+    border-bottom: 0;
+}
+
+.settings-item-status {
+    padding: 5px 8px;
+    color: var(--settings-muted);
+    background: color-mix(in srgb, var(--settings-muted) 10%, transparent);
+}
+
+.settings-back-button {
+    margin-top: 22px;
+    padding: 10px 13px;
+}
+
+.settings-theme-preview {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 20px;
+    margin-top: 24px;
+    border: 1px solid var(--settings-border);
+    border-radius: 13px;
+    transition: background 0.2s, color 0.2s;
+}
+
+.settings-theme-preview.light {
+    background: #f8fafc;
+    color: #172033;
+}
+
+.settings-theme-preview.dark {
+    background: #172033;
+    color: #f8fafc;
+    border-color: #34425b;
+}
+
+.settings-theme-preview p {
+    margin: 6px 0 0;
+    font-size: 12px;
+    opacity: 0.75;
+}
+
+.settings-theme-controls {
+    display: flex;
+    gap: 6px;
+}
+
+.settings-theme-controls button {
+    padding: 8px 11px;
+    border: 1px solid #94a3b8;
+    border-radius: 8px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+}
+
+.settings-theme-controls button.selected {
+    border-color: var(--settings-primary);
+    background: var(--settings-primary);
+    color: white;
+}
+
+.settings-role-list {
+    margin-top: 25px;
+}
+
+.settings-role-list h3 {
+    margin-top: 0;
+}
+
+.settings-role-row {
+    align-items: flex-start;
+}
+
+.settings-role-row strong {
+    flex: 0 0 155px;
+}
+
+.settings-role-row span {
+    color: var(--settings-muted);
+    text-align: right;
+}
+
+.settings-role-disclaimer {
+    margin-top: 12px;
+    color: var(--settings-muted);
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.settings-footer {
+    padding: 20px 3px 0;
+    margin-top: 20px;
+    color: var(--settings-muted);
+    font-size: 11px;
+}
+
+@media (max-width: 1050px) {
+    .settings-layout {
+        grid-template-columns: 220px minmax(0, 1fr);
+    }
+
+    .settings-content {
+        padding: 20px;
+    }
+
+    .settings-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .settings-card>p {
+        min-height: auto;
+    }
+}
+
+@media (max-width: 720px) {
+    .settings-page {
+        padding: 18px 13px;
+    }
+
+    .settings-header {
+        align-items: flex-start;
+    }
+
+    .settings-heading {
+        align-items: flex-start;
+    }
+
+    .settings-heading-icon {
+        width: 45px;
+        height: 45px;
+    }
+
+    .settings-reset-button {
+        margin-left: 59px;
+    }
+
+    .settings-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .settings-sidebar {
+        display: flex;
+        gap: 6px;
+        padding: 10px;
+        overflow-x: auto;
+    }
+
+    .settings-sidebar-label {
+        display: none;
+    }
+
+    .settings-nav-item {
+        flex: 0 0 auto;
+        width: auto;
+        max-width: 210px;
+        margin: 0;
+        white-space: nowrap;
+    }
+
+    .settings-nav-item svg {
+        width: 16px;
+    }
+
+    .settings-content {
+        padding: 16px;
+    }
+
+    .settings-section-heading {
+        flex-direction: column;
+    }
+
+    .settings-theme-preview,
+    .settings-role-row,
+    .settings-detail-list li {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .settings-role-row strong {
+        flex-basis: auto;
+    }
+
+    .settings-role-row span {
+        text-align: left;
+    }
+
+    .settings-footer {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 6px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .settings-page *,
+    .settings-page *::before,
+    .settings-page *::after {
+        transition: none !important;
+        animation: none !important;
+    }
+}

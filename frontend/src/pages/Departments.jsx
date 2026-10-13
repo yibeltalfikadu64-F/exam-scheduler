@@ -15,9 +15,11 @@ import {
   GraduationCap,
   AlertTriangle,
   LoaderCircle,
+  CheckCircle2,
+  AlertCircle,
 } from 'lucide-react';
-
 import api from '../services/api';
+import './Departments.css';
 
 const PAGE_SIZE = 10;
 
@@ -30,42 +32,70 @@ const emptyForm = {
 };
 
 function getErrorMessage(error) {
-  if (error?.details?.length) {
-    return error.details.map((item) => item.message).join(' ');
+  if (Array.isArray(error?.details)) {
+    return error.details
+      .map((detail) => detail.message || detail.msg || String(detail))
+      .join(', ');
   }
+
+  if (typeof error?.details === 'string') {
+    return error.details;
+  }
+
   return error?.message || 'Something went wrong. Please try again.';
+}
+
+function getPayload(response) {
+  // Supports both direct API payloads and { success, data, meta } responses.
+  return response?.data?.data ?? response?.data ?? response;
 }
 
 function StatusBadge({ active }) {
   return (
     <span
-      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${active
-        ? 'bg-emerald-100 text-emerald-700'
-        : 'bg-slate-100 text-slate-600'
+      className={`department-status ${active
+          ? 'department-status-active'
+          : 'department-status-inactive'
         }`}
     >
+      <span className="department-status-dot" />
       {active ? 'Active' : 'Inactive'}
     </span>
   );
 }
 
-function DepartmentModal({ department, onClose, onSave, saving }) {
-  const [form, setForm] = useState(() => ({
+function SummaryCard({ label, value, icon: Icon, variant = 'blue' }) {
+  return (
+    <article className="department-summary-card">
+      <div className="department-summary-top">
+        <span className="department-summary-label">{label}</span>
+        <span className={`department-summary-icon department-summary-icon-${variant}`}>
+          <Icon size={20} />
+        </span>
+      </div>
+      <div className="department-summary-value">{value}</div>
+    </article>
+  );
+}
+
+function DepartmentModal({
+  department,
+  onClose,
+  onSave,
+  saving,
+}) {
+  const isEditing = Boolean(department?.id);
+  const [form, setForm] = useState({
     ...emptyForm,
-    ...(department
-      ? {
-        code: department.code || '',
-        name: department.name || '',
-        description: department.description || '',
-        headId: department.headId ?? '',
-        isActive: department.isActive ?? true,
-      }
-      : {}),
-  }));
+    ...(department || {}),
+    headId: department?.headId ?? department?.head_id ?? '',
+    isActive: department?.isActive ?? department?.is_active ?? true,
+  });
   const [error, setError] = useState('');
 
   function updateField(event) {
     const { name, value, type, checked } = event.target;
+
     setForm((current) => ({
       ...current,
       [name]: type === 'checkbox' ? checked : value,
@@ -77,25 +107,17 @@ function DepartmentModal({ department, onClose, onSave, saving }) {
     setError('');
 
     if (!form.code.trim() || !form.name.trim()) {
-      setError('Department code and name are required.');
+      setError('Department code and department name are required.');
       return;
     }
 
     const payload = {
-      code: form.code.trim().toUpperCase(),
+      code: form.code.trim(),
       name: form.name.trim(),
       description: form.description.trim(),
-      headId: form.headId === '' ? null : Number(form.headId),
-      ...(department ? {} : { isActive: form.isActive }),
+      headId: form.headId || null,
+      isActive: form.isActive,
     };
-
-    if (
-      payload.headId !== null &&
-      (!Number.isInteger(payload.headId) || payload.headId <= 0)
-    ) {
-      setError('Department head ID must be a positive whole number.');
-      return;
-    }
 
     try {
       await onSave(payload);
@@ -106,211 +128,306 @@ function DepartmentModal({ department, onClose, onSave, saving }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4"
+      className="department-modal-overlay"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget && !saving) onClose();
       }}
     >
-      <div
+      <section
+        className="department-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby="department-modal-title"
-        className="my-auto w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-6 text-slate-900 shadow-2xl"
       >
-        <div className="mb-6 flex items-start justify-between gap-4">
+        <header className="department-modal-header">
           <div>
-            <h2 id="department-modal-title" className="text-xl font-bold">
-              {department ? 'Edit department' : 'Create department'}
+            <h2 id="department-modal-title" className="department-modal-title">
+              {isEditing ? 'Edit Department' : 'Create Department'}
             </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Manage department information and its assigned head.
+            <p className="department-modal-description">
+              {isEditing
+                ? 'Update the department information below.'
+                : 'Enter the details to add a department to your university.'}
             </p>
           </div>
+
           <button
             type="button"
+            className="department-modal-close"
             onClick={onClose}
             disabled={saving}
-            aria-label="Close form"
-            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+            aria-label="Close modal"
           >
             <X size={20} />
           </button>
-        </div>
+        </header>
 
-        {error && (
-          <div
-            role="alert"
-            className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
-          >
-            {error}
-          </div>
-        )}
+        <form className="department-form" onSubmit={handleSubmit}>
+          {error && (
+            <div className="department-alert department-alert-error">
+              <AlertCircle size={18} />
+              <span>{error}</span>
+            </div>
+          )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block text-sm font-medium">
-              Department code *
+          <div className="department-form-grid">
+            <label className="department-form-field">
+              <span>
+                Department Code <span className="department-required">*</span>
+              </span>
               <input
+                className="department-input"
                 name="code"
                 value={form.code}
                 onChange={updateField}
+                placeholder="e.g. CSE"
                 maxLength={30}
                 required
-                placeholder="e.g. CS"
-                className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                autoFocus
               />
+              <small className="department-field-hint">
+                Use a short, unique department code.
+              </small>
             </label>
 
-            <label className="block text-sm font-medium">
-              Department name *
+            <label className="department-form-field">
+              <span>
+                Department Name <span className="department-required">*</span>
+              </span>
               <input
+                className="department-input"
                 name="name"
                 value={form.name}
                 onChange={updateField}
+                placeholder="e.g. Computer Science"
                 maxLength={150}
                 required
-                placeholder="e.g. Computer Science"
-                className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
               />
+            </label>
+
+            <label className="department-form-field department-form-field-full">
+              <span>Description</span>
+              <textarea
+                className="department-textarea"
+                name="description"
+                value={form.description || ''}
+                onChange={updateField}
+                placeholder="Describe the department's responsibilities..."
+                rows={4}
+                maxLength={1000}
+              />
+            </label>
+
+            <label className="department-form-field department-form-field-full">
+              <span>Department Head ID (optional)</span>
+              <input
+                className="department-input"
+                name="headId"
+                value={form.headId || ''}
+                onChange={updateField}
+                placeholder="Enter the department head's user ID"
+              />
+              <small className="department-field-hint">
+                Leave blank if a department head has not been assigned.
+              </small>
+            </label>
+
+            <label className="department-checkbox-label department-form-field-full">
+              <input
+                type="checkbox"
+                name="isActive"
+                checked={Boolean(form.isActive)}
+                onChange={updateField}
+              />
+              <span className="department-checkbox-custom" />
+              <span>
+                <strong>Department is active</strong>
+                <small>
+                  Active departments can be used when managing university exams.
+                </small>
+              </span>
             </label>
           </div>
 
-          <label className="block text-sm font-medium">
-            Description
-            <textarea
-              name="description"
-              value={form.description}
-              onChange={updateField}
-              rows={3}
-              placeholder="Describe the department..."
-              className="mt-1.5 w-full resize-y rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-            />
-          </label>
-
-          <label className="block text-sm font-medium">
-            Department head user ID
-            <input
-              name="headId"
-              type="number"
-              min="1"
-              step="1"
-              value={form.headId}
-              onChange={updateField}
-              placeholder="Leave blank if not assigned"
-              className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-            />
-            <span className="mt-1 block text-xs font-normal text-slate-500">
-              Enter an existing user ID. A searchable user selector can be
-              added after checking the users API.
-            </span>
-          </label>
-
-          {!department && (
-            <label className="flex items-center gap-2 text-sm font-medium">
-              <input
-                name="isActive"
-                type="checkbox"
-                checked={form.isActive}
-                onChange={updateField}
-                className="h-4 w-4 rounded"
-              />
-              Create as an active department
-            </label>
-          )}
-
-          <div className="flex justify-end gap-3 border-t border-slate-100 pt-4">
+          <footer className="department-modal-footer">
             <button
               type="button"
+              className="department-btn department-btn-secondary"
               onClick={onClose}
               disabled={saving}
-              className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold hover:bg-slate-50 disabled:opacity-50"
             >
               Cancel
             </button>
+
             <button
               type="submit"
+              className="department-btn department-btn-primary"
               disabled={saving}
-              className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
             >
-              {saving && <LoaderCircle size={16} className="animate-spin" />}
-              {saving ? 'Saving...' : department ? 'Save changes' : 'Create department'}
+              {saving ? (
+                <>
+                  <LoaderCircle className="department-spinner" size={17} />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  {isEditing ? <Pencil size={17} /> : <Plus size={17} />}
+                  {isEditing ? 'Save Changes' : 'Create Department'}
+                </>
+              )}
             </button>
-          </div>
+          </footer>
         </form>
-      </div>
+      </section>
     </div>
   );
 }
 
-function DeactivationModal({ department, dependencies, loading, onCancel, onConfirm, saving }) {
+function DeactivationModal({
+  department,
+  dependencies,
+  loading,
+  saving,
+  onClose,
+  onConfirm,
+}) {
+  const programs =
+    dependencies?.programsCount ??
+    dependencies?.programs_count ??
+    dependencies?.programs?.length ??
+    dependencies?.programs ??
+    0;
+
+  const courses =
+    dependencies?.coursesCount ??
+    dependencies?.courses_count ??
+    dependencies?.courses?.length ??
+    dependencies?.courses ??
+    0;
+
+  const students =
+    dependencies?.studentsCount ??
+    dependencies?.students_count ??
+    dependencies?.students?.length ??
+    dependencies?.students ??
+    0;
+
+  const programCount = Number(programs) || 0;
+  const courseCount = Number(courses) || 0;
+  const studentCount = Number(students) || 0;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div
+    <div
+      className="department-modal-overlay"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !saving) onClose();
+      }}
+    >
+      <section
+        className="department-modal department-modal-small"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="deactivate-title"
-        className="w-full max-w-md rounded-2xl bg-white p-6 text-slate-900 shadow-2xl"
+        aria-labelledby="department-deactivation-title"
       >
-        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
-          <AlertTriangle size={25} />
-        </div>
+        <div className="department-deactivation-content">
+          <div className="department-warning-icon">
+            <AlertTriangle size={27} />
+          </div>
 
-        <h2 id="deactivate-title" className="text-xl font-bold">
-          Deactivate department?
-        </h2>
-        <p className="mt-2 text-sm leading-6 text-slate-600">
-          You are about to deactivate <strong>{department.name}</strong> ({department.code}).
-          Existing records will not be deleted.
-        </p>
+          <h2
+            id="department-deactivation-title"
+            className="department-modal-title"
+          >
+            Deactivate Department?
+          </h2>
 
-        <div className="my-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <p className="department-modal-description">
+            You are about to deactivate{' '}
+            <strong>{department?.name}</strong> ({department?.code}).
+            Review its associated records before continuing.
+          </p>
+
           {loading ? (
-            <p className="flex items-center gap-2 text-sm text-slate-600">
-              <LoaderCircle size={16} className="animate-spin" />
-              Checking related records...
-            </p>
+            <div className="department-dependency-loading">
+              <LoaderCircle className="department-spinner" size={20} />
+              <span>Checking related records...</span>
+            </div>
           ) : (
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-slate-500">Programs</p>
-                <p className="mt-1 text-2xl font-bold">
-                  {dependencies?.programs ?? '—'}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-slate-500">Courses</p>
-                <p className="mt-1 text-2xl font-bold">
-                  {dependencies?.courses ?? '—'}
-                </p>
+            <div className="department-dependency-panel">
+              <p className="department-dependency-heading">
+                Associated records
+              </p>
+
+              <div className="department-dependency-grid">
+                <div className="department-dependency-item">
+                  <span className="department-dependency-label">
+                    <Building2 size={16} />
+                    Programs
+                  </span>
+                  <strong className="department-dependency-value">
+                    {programCount}
+                  </strong>
+                </div>
+
+                <div className="department-dependency-item">
+                  <span className="department-dependency-label">
+                    <BookOpen size={16} />
+                    Courses
+                  </span>
+                  <strong className="department-dependency-value">
+                    {courseCount}
+                  </strong>
+                </div>
+
+                <div className="department-dependency-item">
+                  <span className="department-dependency-label">
+                    <Users size={16} />
+                    Students
+                  </span>
+                  <strong className="department-dependency-value">
+                    {studentCount}
+                  </strong>
+                </div>
               </div>
             </div>
           )}
+
+          <p className="department-warning-note">
+            Deactivation should not delete the department's existing records.
+            Check your backend rules before proceeding.
+          </p>
         </div>
 
-        <p className="mb-5 text-xs leading-5 text-slate-500">
-          Check these dependencies before proceeding. The backend may allow
-          related records to remain attached to an inactive department.
-        </p>
-
-        <div className="flex justify-end gap-3">
+        <footer className="department-modal-footer">
           <button
             type="button"
-            onClick={onCancel}
+            className="department-btn department-btn-secondary"
+            onClick={onClose}
             disabled={saving}
-            className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold hover:bg-slate-50"
           >
             Cancel
           </button>
+
           <button
             type="button"
+            className="department-btn department-btn-danger"
             onClick={onConfirm}
-            disabled={loading || saving || !dependencies}
-            className="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+            disabled={saving || loading}
           >
-            {saving ? 'Updating...' : 'Confirm deactivation'}
+            {saving ? (
+              <>
+                <LoaderCircle className="department-spinner" size={17} />
+                Processing...
+              </>
+            ) : (
+              <>
+                <Power size={17} />
+                Deactivate
+              </>
+            )}
           </button>
-        </div>
-      </div>
+        </footer>
+      </section>
     </div>
   );
 }
@@ -326,409 +443,606 @@ export default function Departments() {
 
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
-  const [editing, setEditing] = useState(null);
-  const [formOpen, setFormOpen] = useState(false);
-  const [statusTarget, setStatusTarget] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [pageError, setPageError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+
+  const [departmentModalOpen, setDepartmentModalOpen] = useState(false);
+  const [editingDepartment, setEditingDepartment] = useState(null);
+  const [savingDepartment, setSavingDepartment] = useState(false);
+
+  const [deactivationDepartment, setDeactivationDepartment] = useState(null);
   const [dependencies, setDependencies] = useState(null);
-  const [dependenciesLoading, setDependenciesLoading] = useState(false);
+  const [loadingDependencies, setLoadingDependencies] = useState(false);
+  const [savingDeactivation, setSavingDeactivation] = useState(false);
 
-  const loadDepartments = useCallback(async () => {
-    setLoading(true);
-    setError('');
+  const loadDepartments = useCallback(
+    async ({ silent = false } = {}) => {
+      if (silent) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
 
-    try {
-      const response = await api.get('/departments', {
-        params: {
-          search: search || undefined,
-          page,
-          limit: PAGE_SIZE,
-          sort: 'name',
-          order: 'asc',
-        },
-      });
+      setPageError('');
 
-      const result = response?.data || {};
-      setDepartments(Array.isArray(result.items) ? result.items : []);
-      setPagination(
-        result.pagination || {
-          page,
-          limit: PAGE_SIZE,
-          total: result.items?.length || 0,
-          totalPages: 1,
-        }
-      );
-    } catch (requestError) {
-      setError(getErrorMessage(requestError));
-    } finally {
-      setLoading(false);
-    }
-  }, [page, search]);
+      try {
+        const response = await api.get('/departments', {
+          params: {
+            search,
+            page: pagination.page,
+            limit: PAGE_SIZE,
+            sort: 'name',
+            order: 'asc',
+          },
+        });
+
+        const payload = getPayload(response);
+        const items = Array.isArray(payload?.items)
+          ? payload.items
+          : Array.isArray(payload?.departments)
+            ? payload.departments
+            : Array.isArray(payload)
+              ? payload
+              : [];
+
+        const pageInfo = payload?.pagination || payload?.meta?.pagination || {};
+
+        setDepartments(items);
+        setPagination((current) => ({
+          ...current,
+          page: Number(pageInfo.page ?? pagination.page) || 1,
+          limit: Number(pageInfo.limit ?? PAGE_SIZE) || PAGE_SIZE,
+          total: Number(pageInfo.total ?? pageInfo.totalItems ?? items.length) || 0,
+          totalPages:
+            Number(
+              pageInfo.totalPages ??
+              pageInfo.pages ??
+              Math.max(1, Math.ceil((pageInfo.total ?? items.length) / PAGE_SIZE)),
+            ) || 1,
+        }));
+      } catch (error) {
+        setPageError(getErrorMessage(error));
+        setDepartments([]);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [pagination.page, search],
+  );
 
   useEffect(() => {
     loadDepartments();
   }, [loadDepartments]);
 
+  useEffect(() => {
+    if (!successMessage) return undefined;
+    const timeout = setTimeout(() => setSuccessMessage(''), 4000);
+    return () => clearTimeout(timeout);
+  }, [successMessage]);
+
   function handleSearch(event) {
     event.preventDefault();
-    setPage(1);
+    setPagination((current) => ({ ...current, page: 1 }));
     setSearch(searchInput.trim());
   }
 
-  async function saveDepartment(payload) {
-    setSaving(true);
-    setError('');
-    setNotice('');
+  function openCreateModal() {
+    setEditingDepartment(null);
+    setDepartmentModalOpen(true);
+  }
+
+  function openEditModal(department) {
+    setEditingDepartment(department);
+    setDepartmentModalOpen(true);
+  }
+
+  async function saveDepartment(formData) {
+    setSavingDepartment(true);
+    setPageError('');
 
     try {
-      if (editing) {
-        await api.patch(`/departments/${editing.id}`, payload);
-        setNotice('Department updated successfully.');
+      if (editingDepartment) {
+        await api.patch(`/departments/${editingDepartment.id}`, formData);
+        setSuccessMessage('Department updated successfully.');
       } else {
-        await api.post('/departments', payload);
-        setNotice('Department created successfully.');
-        setPage(1);
+        await api.post('/departments', formData);
+        setSuccessMessage('Department created successfully.');
       }
 
-      setFormOpen(false);
-      setEditing(null);
-      await loadDepartments();
+      setDepartmentModalOpen(false);
+      setEditingDepartment(null);
+
+      if (!editingDepartment) {
+        setPagination((current) => ({ ...current, page: 1 }));
+        if (pagination.page !== 1) {
+          // The page change triggers a reload through the effect.
+          return;
+        }
+      }
+
+      await loadDepartments({ silent: true });
+    } catch (error) {
+      throw error;
     } finally {
-      setSaving(false);
+      setSavingDepartment(false);
     }
   }
 
   async function openDeactivation(department) {
-    setStatusTarget(department);
+    setDeactivationDepartment(department);
     setDependencies(null);
-    setDependenciesLoading(true);
-    setError('');
+    setLoadingDependencies(true);
+    setPageError('');
 
     try {
-      const response = await api.get(`/departments/${department.id}/dependencies`);
-      setDependencies(response?.data || null);
-    } catch (requestError) {
-      setError(`Unable to check dependencies: ${getErrorMessage(requestError)}`);
-      setStatusTarget(null);
+      const response = await api.get(
+        `/departments/${department.id}/dependencies`,
+      );
+      const payload = getPayload(response);
+      setDependencies(payload || {});
+    } catch (error) {
+      setDependencies({});
+      setPageError(
+        `Could not load department dependencies: ${getErrorMessage(error)}`,
+      );
     } finally {
-      setDependenciesLoading(false);
+      setLoadingDependencies(false);
     }
   }
 
-  async function toggleStatus(department) {
-    setSaving(true);
-    setError('');
-    setNotice('');
+  async function confirmDeactivation() {
+    if (!deactivationDepartment) return;
+
+    setSavingDeactivation(true);
+    setPageError('');
+
+    try {
+      await api.patch(
+        `/departments/${deactivationDepartment.id}/status`,
+        { isActive: false },
+      );
+
+      setDeactivationDepartment(null);
+      setDependencies(null);
+      setSuccessMessage('Department deactivated successfully.');
+      await loadDepartments({ silent: true });
+    } catch (error) {
+      setPageError(getErrorMessage(error));
+    } finally {
+      setSavingDeactivation(false);
+    }
+  }
+
+  async function reactivateDepartment(department) {
+    const confirmed = window.confirm(
+      `Reactivate department "${department.name}"?`,
+    );
+    if (!confirmed) return;
+
+    setPageError('');
 
     try {
       await api.patch(`/departments/${department.id}/status`, {
-        isActive: !department.isActive,
+        isActive: true,
       });
-
-      setNotice(
-        department.isActive
-          ? 'Department deactivated successfully.'
-          : 'Department activated successfully.'
-      );
-      setStatusTarget(null);
-      await loadDepartments();
-    } catch (requestError) {
-      setError(getErrorMessage(requestError));
-      setStatusTarget(null);
-    } finally {
-      setSaving(false);
+      setSuccessMessage('Department reactivated successfully.');
+      await loadDepartments({ silent: true });
+    } catch (error) {
+      setPageError(getErrorMessage(error));
     }
   }
 
-  const activeCount = departments.filter((department) => department.isActive).length;
-  const programCount = departments.reduce(
-    (total, department) => total + Number(department.programCount || 0),
-    0
-  );
-  const courseCount = departments.reduce(
-    (total, department) => total + Number(department.courseCount || 0),
-    0
-  );
+  function changePage(nextPage) {
+    setPagination((current) => ({
+      ...current,
+      page: Math.min(Math.max(1, nextPage), current.totalPages || 1),
+    }));
+  }
+
+  const activeCount = departments.filter(
+    (department) => department.isActive ?? department.is_active,
+  ).length;
+
+  const inactiveCount = departments.length - activeCount;
 
   return (
-    <main className="space-y-6 p-4 text-slate-900 sm:p-6 lg:p-8">
-      <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-        <div className="flex items-start gap-3">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700">
-            <Building2 size={25} />
+    <main className="departments-page">
+      <header className="departments-header">
+        <div className="departments-heading">
+          <div className="departments-heading-icon">
+            <Building2 size={27} />
           </div>
+
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">
-              Departments & Programs
-            </h1>
-            <p className="mt-1 text-sm text-slate-500">
-              Manage university departments, department heads, and dependencies.
+            <h1 className="departments-title">Departments</h1>
+            <p className="departments-subtitle">
+              Manage academic departments and their university records.
             </p>
           </div>
         </div>
 
         <button
           type="button"
-          onClick={() => {
-            setEditing(null);
-            setFormOpen(true);
-            setNotice('');
-          }}
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700"
+          className="department-btn department-btn-primary"
+          onClick={openCreateModal}
         >
           <Plus size={18} />
-          Add department
+          Add Department
         </button>
       </header>
 
-      {error && (
-        <div
-          role="alert"
-          className="flex items-start justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
-        >
-          <span>{error}</span>
-          <button onClick={() => setError('')} aria-label="Dismiss error">
-            <X size={18} />
+      {pageError && (
+        <div className="department-alert department-alert-error" role="alert">
+          <AlertCircle size={18} />
+          <span>{pageError}</span>
+          <button
+            type="button"
+            className="department-alert-close"
+            onClick={() => setPageError('')}
+            aria-label="Dismiss error"
+          >
+            <X size={17} />
           </button>
         </div>
       )}
 
-      {notice && (
+      {successMessage && (
         <div
+          className="department-alert department-alert-success"
           role="status"
-          className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800"
         >
-          <span>{notice}</span>
-          <button onClick={() => setNotice('')} aria-label="Dismiss message">
-            <X size={18} />
+          <CheckCircle2 size={18} />
+          <span>{successMessage}</span>
+          <button
+            type="button"
+            className="department-alert-close"
+            onClick={() => setSuccessMessage('')}
+            aria-label="Dismiss success message"
+          >
+            <X size={17} />
           </button>
         </div>
       )}
 
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <SummaryCard icon={Building2} label="Departments on this page" value={departments.length} />
-        <SummaryCard icon={Power} label="Active on this page" value={activeCount} />
-        <SummaryCard icon={GraduationCap} label="Programs on this page" value={programCount} />
-        <SummaryCard icon={BookOpen} label="Courses on this page" value={courseCount} />
+      <section className="department-summary-grid" aria-label="Department summary">
+        <SummaryCard
+          label="Total Departments"
+          value={pagination.total}
+          icon={Building2}
+          variant="blue"
+        />
+        <SummaryCard
+          label="Active on This Page"
+          value={activeCount}
+          icon={CheckCircle2}
+          variant="green"
+        />
+        <SummaryCard
+          label="Inactive on This Page"
+          value={inactiveCount}
+          icon={Power}
+          variant="orange"
+        />
+        <SummaryCard
+          label="Current Page"
+          value={`${pagination.page} / ${pagination.totalPages}`}
+          icon={GraduationCap}
+          variant="purple"
+        />
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex flex-col justify-between gap-4 border-b border-slate-200 p-4 sm:flex-row sm:items-center">
+      <section className="department-panel">
+        <div className="department-panel-header">
           <div>
-            <h2 className="font-semibold">Department directory</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              {Number(pagination.total || 0)} department(s) found
+            <h2 className="department-panel-title">Department Directory</h2>
+            <p className="department-panel-subtitle">
+              {pagination.total} department{pagination.total === 1 ? '' : 's'} found
             </p>
           </div>
 
-          <form onSubmit={handleSearch} className="flex w-full gap-2 sm:max-w-md">
-            <div className="relative min-w-0 flex-1">
-              <Search
-                size={18}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-              />
-              <input
-                value={searchInput}
-                onChange={(event) => setSearchInput(event.target.value)}
-                placeholder="Search name, code, or description"
-                aria-label="Search departments"
-                className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-              />
-            </div>
-            <button
-              type="submit"
-              className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700"
-            >
-              Search
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setSearchInput('');
-                setSearch('');
-                setPage(1);
-              }}
-              aria-label="Refresh departments"
-              title="Refresh departments"
-              className="rounded-lg border border-slate-300 p-2.5 hover:bg-slate-50"
-            >
-              <RefreshCw size={17} />
-            </button>
-          </form>
+          <button
+            type="button"
+            className="department-refresh-button"
+            onClick={() => loadDepartments({ silent: true })}
+            disabled={refreshing || loading}
+            aria-label="Refresh departments"
+            title="Refresh departments"
+          >
+            <RefreshCw
+              size={18}
+              className={refreshing ? 'department-refresh-spinning' : ''}
+            />
+          </button>
         </div>
 
+        <form className="department-search-form" onSubmit={handleSearch}>
+          <div className="department-search-box">
+            <Search className="department-search-icon" size={18} />
+            <input
+              className="department-input department-search-input"
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              placeholder="Search by department name or code..."
+              aria-label="Search departments"
+            />
+            {searchInput && (
+              <button
+                type="button"
+                className="department-search-clear"
+                onClick={() => setSearchInput('')}
+                aria-label="Clear search"
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
+
+          <button
+            type="submit"
+            className="department-btn department-btn-secondary department-search-submit"
+          >
+            <Search size={17} />
+            Search
+          </button>
+        </form>
+
         {loading ? (
-          <div className="flex min-h-64 items-center justify-center gap-3 text-sm text-slate-500">
-            <LoaderCircle className="animate-spin" size={22} />
-            Loading departments...
+          <div className="department-state">
+            <LoaderCircle className="department-spinner department-state-spinner" size={32} />
+            <h3 className="department-state-title">Loading departments</h3>
+            <p className="department-state-description">
+              Please wait while department records are retrieved.
+            </p>
           </div>
         ) : departments.length === 0 ? (
-          <div className="flex min-h-64 flex-col items-center justify-center px-6 text-center">
-            <Building2 size={36} className="text-slate-300" />
-            <h3 className="mt-3 font-semibold">No departments found</h3>
-            <p className="mt-1 text-sm text-slate-500">
-              Try another search or create a new department.
+          <div className="department-state">
+            <div className="department-state-icon">
+              <Building2 size={30} />
+            </div>
+            <h3 className="department-state-title">
+              {search ? 'No matching departments' : 'No departments yet'}
+            </h3>
+            <p className="department-state-description">
+              {search
+                ? 'Try another search term or clear your search.'
+                : 'Create your first department to get started.'}
             </p>
+
+            {search ? (
+              <button
+                type="button"
+                className="department-btn department-btn-secondary"
+                onClick={() => {
+                  setSearchInput('');
+                  setSearch('');
+                  setPagination((current) => ({ ...current, page: 1 }));
+                }}
+              >
+                Clear Search
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="department-btn department-btn-primary"
+                onClick={openCreateModal}
+              >
+                <Plus size={17} />
+                Add Department
+              </button>
+            )}
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[850px] text-left text-sm">
-                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <div className="department-table-wrapper">
+              <table className="department-table">
+                <thead>
                   <tr>
-                    <th className="px-5 py-3.5 font-semibold">Department</th>
-                    <th className="px-5 py-3.5 font-semibold">Department head</th>
-                    <th className="px-5 py-3.5 font-semibold">Programs</th>
-                    <th className="px-5 py-3.5 font-semibold">Courses</th>
-                    <th className="px-5 py-3.5 font-semibold">Status</th>
-                    <th className="px-5 py-3.5 text-right font-semibold">Actions</th>
+                    <th>Department</th>
+                    <th>Code</th>
+                    <th>Description</th>
+                    <th>Department Head</th>
+                    <th>Status</th>
+                    <th className="department-actions-heading">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {departments.map((department) => (
-                    <tr key={department.id} className="hover:bg-slate-50/80">
-                      <td className="px-5 py-4">
-                        <div className="font-semibold">{department.name}</div>
-                        <div className="mt-1 text-xs text-slate-500">
-                          {department.code}
-                          {department.description ? ` · ${department.description}` : ''}
-                        </div>
-                      </td>
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-2">
-                          <Users size={16} className="text-slate-400" />
-                          <div>
-                            <div>{department.head?.fullName || 'Not assigned'}</div>
-                            {department.head?.username && (
-                              <div className="text-xs text-slate-500">
-                                @{department.head.username}
-                              </div>
+
+                <tbody>
+                  {departments.map((department) => {
+                    const active = Boolean(
+                      department.isActive ?? department.is_active,
+                    );
+                    const head =
+                      department.head ||
+                      department.departmentHead ||
+                      department.department_head;
+
+                    return (
+                      <tr key={department.id}>
+                        <td>
+                          <div className="department-name-cell">
+                            <span className="department-row-icon">
+                              <Building2 size={17} />
+                            </span>
+                            <span className="department-name">
+                              {department.name}
+                            </span>
+                          </div>
+                        </td>
+
+                        <td>
+                          <span className="department-code">
+                            {department.code || '—'}
+                          </span>
+                        </td>
+
+                        <td>
+                          <span
+                            className="department-description"
+                            title={department.description || ''}
+                          >
+                            {department.description || 'No description provided'}
+                          </span>
+                        </td>
+
+                        <td>
+                          {head ? (
+                            <div className="department-head-cell">
+                              <span className="department-head-icon">
+                                <Users size={16} />
+                              </span>
+                              <span>
+                                <span className="department-head-name">
+                                  {head.name ||
+                                    [head.firstName, head.lastName]
+                                      .filter(Boolean)
+                                      .join(' ') ||
+                                    head.fullName ||
+                                    head.full_name ||
+                                    head.username ||
+                                    'Assigned'}
+                                </span>
+                                {head.username && head.name && (
+                                  <span className="department-head-username">
+                                    @{head.username}
+                                  </span>
+                                )}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="department-muted">Not assigned</span>
+                          )}
+                        </td>
+
+                        <td>
+                          <StatusBadge active={active} />
+                        </td>
+
+                        <td>
+                          <div className="department-actions">
+                            <button
+                              type="button"
+                              className="department-action-button"
+                              onClick={() => openEditModal(department)}
+                              title="Edit department"
+                              aria-label={`Edit ${department.name}`}
+                            >
+                              <Pencil size={16} />
+                            </button>
+
+                            {active ? (
+                              <button
+                                type="button"
+                                className="department-action-button department-action-danger"
+                                onClick={() => openDeactivation(department)}
+                                title="Deactivate department"
+                                aria-label={`Deactivate ${department.name}`}
+                              >
+                                <Power size={16} />
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                className="department-action-button department-action-success"
+                                onClick={() => reactivateDepartment(department)}
+                                title="Reactivate department"
+                                aria-label={`Reactivate ${department.name}`}
+                              >
+                                <RefreshCw size={16} />
+                              </button>
                             )}
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-5 py-4">{department.programCount ?? 0}</td>
-                      <td className="px-5 py-4">{department.courseCount ?? 0}</td>
-                      <td className="px-5 py-4">
-                        <StatusBadge active={department.isActive} />
-                      </td>
-                      <td className="px-5 py-4">
-                        <div className="flex justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditing(department);
-                              setFormOpen(true);
-                              setNotice('');
-                            }}
-                            title="Edit department"
-                            aria-label={`Edit ${department.name}`}
-                            className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"
-                          >
-                            <Pencil size={16} />
-                          </button>
-                          {department.isActive ? (
-                            <button
-                              type="button"
-                              onClick={() => openDeactivation(department)}
-                              title="Deactivate department"
-                              aria-label={`Deactivate ${department.name}`}
-                              className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:border-red-200 hover:bg-red-50 hover:text-red-700"
-                            >
-                              <Power size={16} />
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => toggleStatus(department)}
-                              title="Activate department"
-                              aria-label={`Activate ${department.name}`}
-                              className="rounded-lg border border-slate-200 p-2 text-emerald-700 hover:bg-emerald-50"
-                            >
-                              <Power size={16} />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
 
-            <div className="flex flex-col items-center justify-between gap-3 border-t border-slate-200 px-4 py-4 sm:flex-row">
-              <p className="text-sm text-slate-500">
-                Page {pagination.page || page} of {Math.max(1, pagination.totalPages || 1)}
+            <footer className="department-pagination">
+              <p className="department-pagination-info">
+                Showing{' '}
+                <strong>
+                  {pagination.total === 0
+                    ? 0
+                    : (pagination.page - 1) * pagination.limit + 1}
+                </strong>{' '}
+                to{' '}
+                <strong>
+                  {Math.min(
+                    pagination.page * pagination.limit,
+                    pagination.total,
+                  )}
+                </strong>{' '}
+                of <strong>{pagination.total}</strong> departments
               </p>
-              <div className="flex gap-2">
+
+              <div className="department-pagination-actions">
                 <button
                   type="button"
-                  disabled={page <= 1}
-                  onClick={() => setPage((current) => Math.max(1, current - 1))}
-                  className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="department-pagination-button"
+                  onClick={() => changePage(pagination.page - 1)}
+                  disabled={pagination.page <= 1 || loading}
+                  aria-label="Previous page"
                 >
-                  <ChevronLeft size={16} />
-                  Previous
+                  <ChevronLeft size={18} />
+                  <span>Previous</span>
                 </button>
+
+                <span className="department-pagination-current">
+                  {pagination.page} / {pagination.totalPages}
+                </span>
+
                 <button
                   type="button"
-                  disabled={page >= (pagination.totalPages || 1)}
-                  onClick={() => setPage((current) => current + 1)}
-                  className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="department-pagination-button"
+                  onClick={() => changePage(pagination.page + 1)}
+                  disabled={
+                    pagination.page >= pagination.totalPages || loading
+                  }
+                  aria-label="Next page"
                 >
-                  Next
-                  <ChevronRight size={16} />
+                  <span>Next</span>
+                  <ChevronRight size={18} />
                 </button>
               </div>
-            </div>
+            </footer>
           </>
         )}
       </section>
 
-      {formOpen && (
+      {departmentModalOpen && (
         <DepartmentModal
-          department={editing}
-          saving={saving}
+          department={editingDepartment}
           onClose={() => {
-            if (!saving) {
-              setFormOpen(false);
-              setEditing(null);
+            if (!savingDepartment) {
+              setDepartmentModalOpen(false);
+              setEditingDepartment(null);
             }
           }}
           onSave={saveDepartment}
+          saving={savingDepartment}
         />
       )}
 
-      {statusTarget && (
+      {deactivationDepartment && (
         <DeactivationModal
-          department={statusTarget}
+          department={deactivationDepartment}
           dependencies={dependencies}
-          loading={dependenciesLoading}
-          saving={saving}
-          onCancel={() => {
-            if (!saving) setStatusTarget(null);
+          loading={loadingDependencies}
+          saving={savingDeactivation}
+          onClose={() => {
+            if (!savingDeactivation) {
+              setDeactivationDepartment(null);
+              setDependencies(null);
+            }
           }}
-          onConfirm={() => toggleStatus(statusTarget)}
+          onConfirm={confirmDeactivation}
         />
       )}
     </main>
-  );
-}
-
-function SummaryCard({ icon: Icon, label, value }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-slate-500">{label}</p>
-        <div className="rounded-lg bg-indigo-50 p-2 text-indigo-700">
-          <Icon size={19} />
-        </div>
-      </div>
-      <p className="mt-3 text-2xl font-bold">{value}</p>
-    </div>
   );
 }

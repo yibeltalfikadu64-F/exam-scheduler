@@ -6,6 +6,7 @@ import {
 import courseService from '../services/courseService';
 import departmentService from '../services/departmentService';
 import programService from '../services/programService';
+import './Courses.css'
 
 const emptyForm = {
   departmentId: '',

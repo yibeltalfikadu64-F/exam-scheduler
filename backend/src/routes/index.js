@@ -8,6 +8,7 @@ const express = require('express');
 const config = require('../config/environment');
 const healthRoutes = require('./health.routes');
 const authRoutes = require('./auth.routes');
+const dashboardRoutes = require('./dashboard.routes');
 const userRoutes = require('./user.routes');
 const departmentRoutes = require('./department.routes');
 const programRoutes = require('./program.routes');
@@ -66,6 +67,7 @@ router.get('/', (req, res) => {
 
 router.use('/health', healthRoutes);
 router.use('/auth', authRoutes);
+router.use('/dashboard', dashboardRoutes);
 router.use('/users', userRoutes);
 router.use('/departments', departmentRoutes);
 router.use('/programs', programRoutes);

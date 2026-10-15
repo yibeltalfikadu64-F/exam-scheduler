@@ -1,17 +1,24 @@
+
 'use strict';
 
 /**
  * Centralized environment configuration.
  *
- * Loads `.env` and validates the variables the application cannot start
- * without. Kept dependency-free (except dotenv) so it can be required by
- * every other module without circular imports.
+ * Loads backend/.env and validates required environment variables.
  */
 
 const path = require('path');
 const dotenv = require('dotenv');
 
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+// environment.js is located at backend/src/config/environment.js.
+// ../../.env correctly resolves to backend/.env.
+const envPath = path.resolve(__dirname, '../../.env');
+const dotenvResult = dotenv.config({ path: envPath });
+
+if (dotenvResult.error) {
+  console.warn(`[env] Could not load environment file: ${envPath}`);
+  console.warn(`[env] ${dotenvResult.error.message}`);
+}
 
 function toInt(value, fallback) {
   const parsed = parseInt(value, 10);
@@ -20,6 +27,7 @@ function toInt(value, fallback) {
 
 function toList(value, fallback) {
   const source = value && value.trim() ? value : fallback;
+
   return source
     .split(',')
     .map((item) => item.trim())
@@ -48,7 +56,7 @@ const config = {
     queueLimit: 0,
   },
 
-  // Privileged account, used ONLY by `npm run db:create`.
+  // Privileged account used only by npm run db:create.
   dbAdmin: {
     user: process.env.DB_ADMIN_USER || 'root',
     password: process.env.DB_ADMIN_PASSWORD || '',
@@ -63,26 +71,37 @@ const config = {
   bcryptRounds: toInt(process.env.BCRYPT_ROUNDS, 10),
 
   cors: {
-    origins: toList(process.env.CORS_ORIGIN, 'http://localhost:5173'),
+    origins: toList(
+      process.env.CORS_ORIGIN,
+      'http://localhost:5173'
+    ),
     credentials: true,
   },
 
   rateLimit: {
-    windowMs: toInt(process.env.RATE_LIMIT_WINDOW_MS, 15 * 60 * 1000),
+    windowMs: toInt(
+      process.env.RATE_LIMIT_WINDOW_MS,
+      15 * 60 * 1000
+    ),
     max: toInt(process.env.RATE_LIMIT_MAX_REQUESTS, 300),
   },
 
-  // Stricter limits for credential endpoints (login).
+  // Stricter limits for login endpoints.
   auth: {
-    loginWindowMs: toInt(process.env.AUTH_LOGIN_WINDOW_MS, 15 * 60 * 1000),
-    loginMaxAttempts: toInt(process.env.AUTH_LOGIN_MAX_ATTEMPTS, 10),
+    loginWindowMs: toInt(
+      process.env.AUTH_LOGIN_WINDOW_MS,
+      15 * 60 * 1000
+    ),
+    loginMaxAttempts: toInt(
+      process.env.AUTH_LOGIN_MAX_ATTEMPTS,
+      10
+    ),
   },
 
-  logLevel: process.env.LOG_LEVEL || (isProduction ? 'info' : 'debug'),
+  logLevel:
+    process.env.LOG_LEVEL || (isProduction ? 'info' : 'debug'),
 
-  // Optional SMTP configuration. Email delivery is only attempted when
-  // MAIL_ENABLED is true AND an SMTP host is set. Credentials are never logged
-  // or returned by any endpoint (see services/mailer.js).
+  // Optional email configuration.
   mail: {
     enabled: process.env.MAIL_ENABLED === 'true',
     host: process.env.SMTP_HOST || '',
@@ -91,60 +110,87 @@ const config = {
     user: process.env.SMTP_USER || '',
     password: process.env.SMTP_PASSWORD || '',
     fromName: process.env.MAIL_FROM_NAME || 'Exam Scheduler',
-    fromAddress: process.env.MAIL_FROM_ADDRESS || 'no-reply@exam-scheduler.local',
+    fromAddress:
+      process.env.MAIL_FROM_ADDRESS ||
+      'no-reply@exam-scheduler.local',
   },
 
-  // Notification queue behaviour.
+  // Notification queue configuration.
   notifications: {
-    maxRetries: toInt(process.env.NOTIFICATION_MAX_RETRIES, 3),
-    retryBackoffMinutes: toInt(process.env.NOTIFICATION_RETRY_BACKOFF_MINUTES, 15),
-    dispatchBatchSize: toInt(process.env.NOTIFICATION_DISPATCH_BATCH_SIZE, 50),
+    maxRetries: toInt(
+      process.env.NOTIFICATION_MAX_RETRIES,
+      3
+    ),
+    retryBackoffMinutes: toInt(
+      process.env.NOTIFICATION_RETRY_BACKOFF_MINUTES,
+      15
+    ),
+    dispatchBatchSize: toInt(
+      process.env.NOTIFICATION_DISPATCH_BATCH_SIZE,
+      50
+    ),
   },
 
   seed: {
-    adminEmail: process.env.SEED_ADMIN_EMAIL || 'admin@exam-scheduler.local',
+    adminEmail:
+      process.env.SEED_ADMIN_EMAIL ||
+      'admin@exam-scheduler.local',
     adminUsername: process.env.SEED_ADMIN_USERNAME || 'admin',
-    adminPassword: process.env.SEED_ADMIN_PASSWORD || 'Admin@12345',
+    adminPassword:
+      process.env.SEED_ADMIN_PASSWORD || 'Admin@12345',
   },
 };
 
 const DEV_FALLBACK_SECRET = 'dev-only-insecure-secret-change-me';
 
 /**
- * Validate required variables and fail fast with a clear, actionable message.
- * In non-production a missing JWT secret falls back to a development-only value
- * so the app can boot, but a loud warning is printed.
+ * Validate required environment variables.
  */
 function validateEnv() {
   const problems = [];
 
   const required = ['DB_NAME', 'DB_USER'];
-  required.forEach((key) => {
-    if (!process.env[key]) problems.push(`Missing required environment variable: ${key}`);
-  });
+
+  for (const key of required) {
+    if (!process.env[key] || !process.env[key].trim()) {
+      problems.push(
+        `Missing required environment variable: ${key}`
+      );
+    }
+  }
 
   if (!process.env.JWT_SECRET) {
     if (isProduction) {
-      problems.push('Missing required environment variable: JWT_SECRET');
+      problems.push(
+        'Missing required environment variable: JWT_SECRET'
+      );
     } else {
       config.jwt.secret = DEV_FALLBACK_SECRET;
-      // eslint-disable-next-line no-console
+
       console.warn(
-        '[env] JWT_SECRET is not set. Using an insecure development-only fallback. ' +
-          'Set JWT_SECRET in backend/.env before deploying.'
+        '[env] JWT_SECRET is not set. Using a development-only fallback. ' +
+        'Set JWT_SECRET in backend/.env before deployment.'
       );
     }
   } else if (isProduction && config.jwt.secret.length < 32) {
-    problems.push('JWT_SECRET must be at least 32 characters in production.');
+    problems.push(
+      'JWT_SECRET must be at least 32 characters in production.'
+    );
   }
 
   if (!config.db.password) {
-    // eslint-disable-next-line no-console
-    console.warn('[env] DB_PASSWORD is empty. This is only acceptable for a local server with no password.');
+    console.warn(
+      '[env] DB_PASSWORD is empty. This is acceptable only if ' +
+      'your local MySQL account does not require a password.'
+    );
   }
 
   if (problems.length > 0) {
-    const message = ['Invalid environment configuration:', ...problems.map((p) => `  - ${p}`)].join('\n');
+    const message = [
+      'Invalid environment configuration:',
+      ...problems.map((problem) => `  - ${problem}`),
+    ].join('\n');
+
     throw new Error(message);
   }
 

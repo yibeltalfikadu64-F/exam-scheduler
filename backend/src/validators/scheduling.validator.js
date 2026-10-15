@@ -61,7 +61,65 @@ function validateScheduleListQuery(input = {}) {
 
 function validatePreview(payload = {}) {
   const errors = [];
-  return { value: { examPeriodId: readPositiveInt(payload.examPeriodId, 'examPeriodId', errors) }, errors };
+
+  const examPeriodId = readPositiveInt(
+    payload.examPeriodId,
+    'examPeriodId',
+    errors
+  );
+
+  const expectedCandidates = {};
+  const supplied = payload.expectedCandidates;
+
+  if (supplied !== undefined && supplied !== null) {
+    if (
+      typeof supplied !== 'object' ||
+      Array.isArray(supplied)
+    ) {
+      errors.push({
+        field: 'expectedCandidates',
+        message: 'expectedCandidates must be an object.',
+      });
+    } else {
+      for (const [rawExamId, rawCount] of Object.entries(supplied)) {
+        const examId = Number(rawExamId);
+        const count = Number(rawCount);
+
+        if (
+          !/^[1-9]\d*$/.test(rawExamId) ||
+          !Number.isSafeInteger(examId)
+        ) {
+          errors.push({
+            field: `expectedCandidates.${rawExamId}`,
+            message: 'Exam ID must be a positive integer.',
+          });
+          continue;
+        }
+
+        if (
+          rawCount === '' ||
+          rawCount === null ||
+          rawCount === undefined ||
+          !Number.isSafeInteger(count) ||
+          count <= 0 ||
+          count > 100000
+        ) {
+          errors.push({
+            field: `expectedCandidates.${rawExamId}`,
+            message: 'Candidate count must be a whole number from 1 to 100000.',
+          });
+          continue;
+        }
+
+        expectedCandidates[String(examId)] = count;
+      }
+    }
+  }
+
+  return {
+    value: { examPeriodId, expectedCandidates },
+    errors,
+  };
 }
 
 function validateSaveDraft(payload = {}) {

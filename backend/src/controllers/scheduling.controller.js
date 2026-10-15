@@ -20,7 +20,15 @@ function requestMeta(req) {
 }
 
 const preview = asyncHandler(async (req, res) =>
-  ApiResponse.success(res, await schedulingService.generatePreview({ examPeriodId: req.body.examPeriodId, actor: req.user }), 'Timetable preview generated.')
+  ApiResponse.success(
+    res,
+    await schedulingService.generatePreview({
+      examPeriodId: req.validated.body.examPeriodId,
+      expectedCandidates: req.validated.body.expectedCandidates,
+      actor: req.user,
+    }),
+    'Timetable preview generated.'
+  )
 );
 
 const listSchedules = asyncHandler(async (req, res) =>

@@ -554,7 +554,12 @@ function candidateSlotId(entry) {
 // Context assembly
 // ---------------------------------------------------------------------------
 
-async function buildContext(runner, examPeriodId, actor, { requireUnscheduled = true } = {}) {
+async function buildContext(
+  runner,
+  examPeriodId,
+  actor,
+  { requireUnscheduled = true, expectedCandidates = {} } = {}
+) {
   const period = await loadPeriod(runner, examPeriodId);
   const [rooms, slots, separation] = await Promise.all([
     loadRooms(runner),
@@ -578,7 +583,13 @@ async function buildContext(runner, examPeriodId, actor, { requireUnscheduled = 
       durationMinutes: row.duration_minutes,
       requiredRoomType: row.required_room_type || null,
       requiredCapacity: row.required_capacity || null,
-      enrollmentCount: studentIds.size,
+      // Use a temporary preview count when supplied; otherwise use real enrollment.
+      enrollmentCount: Object.prototype.hasOwnProperty.call(
+        expectedCandidates,
+        String(row.id)
+      )
+        ? expectedCandidates[String(row.id)]
+        : studentIds.size,
       studentIds,
       instructorIds: instructors.get(row.section_id) || new Set(),
     };
@@ -622,8 +633,17 @@ const STRATEGIES = [
   { name: 'duration_bestfit', examSort: 'duration', roomSort: 'capacity_asc' },
 ];
 
-async function generatePreview({ examPeriodId, actor }) {
-  const ctx = await buildContext(database.getPool(), examPeriodId, actor);
+async function generatePreview({
+  examPeriodId,
+  actor,
+  expectedCandidates = {},
+}) {
+  const ctx = await buildContext(
+    database.getPool(),
+    examPeriodId,
+    actor,
+    { expectedCandidates }
+  );
   if (!PERIOD_OPEN_STATUSES.includes(ctx.period.status)) {
     throw ApiError.conflict(`Exam period "${ctx.period.name}" is ${ctx.period.status} and cannot be scheduled.`, {
       code: 'PERIOD_NOT_OPEN',
@@ -963,6 +983,7 @@ async function buildValidatedEntry(conn, context, allocation, { existingEntries 
     startTime: slot.startTime,
     endTime: addMinutes(slot.startTime, exam.duration_minutes),
     durationMinutes: exam.duration_minutes,
+    // Draft records always use the real enrolled-student count.
     enrollmentCount: studentIds.size,
     requiredRoomType: exam.required_room_type || null,
     requiredCapacity: exam.required_capacity || null,

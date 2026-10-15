@@ -1,3 +1,4 @@
+
 'use strict';
 
 /**
@@ -6,6 +7,7 @@
 
 const express = require('express');
 const config = require('../config/environment');
+
 const healthRoutes = require('./health.routes');
 const authRoutes = require('./auth.routes');
 const dashboardRoutes = require('./dashboard.routes');
@@ -22,6 +24,7 @@ const roomRoutes = require('./room.routes');
 const timeSlotRoutes = require('./timeSlot.routes');
 const scheduleConstraintRoutes = require('./scheduleConstraint.routes');
 const examRoutes = require('./exam.routes');
+const examPeriodRoutes = require('./examPeriod.routes');
 const schedulingRoutes = require('./scheduling.routes');
 const invigilatorRoutes = require('./invigilator.routes');
 const invigilationRoutes = require('./invigilation.routes');
@@ -46,6 +49,7 @@ router.get('/', (req, res) => {
         programs: `${config.apiPrefix}/programs`,
         courses: `${config.apiPrefix}/courses`,
         academicYears: `${config.apiPrefix}/academic-years`,
+        examPeriods: `${config.apiPrefix}/exam-periods`,
         sections: `${config.apiPrefix}/sections`,
         students: `${config.apiPrefix}/students`,
         instructors: `${config.apiPrefix}/instructors`,
@@ -61,7 +65,9 @@ router.get('/', (req, res) => {
         notifications: `${config.apiPrefix}/notifications`,
       },
     },
-    meta: { timestamp: new Date().toISOString() },
+    meta: {
+      timestamp: new Date().toISOString(),
+    },
   });
 });
 
@@ -73,6 +79,7 @@ router.use('/departments', departmentRoutes);
 router.use('/programs', programRoutes);
 router.use('/courses', courseRoutes);
 router.use('/academic-years', academicYearRoutes);
+router.use('/exam-periods', examPeriodRoutes);
 router.use('/sections', sectionRoutes);
 router.use('/students', studentRoutes);
 router.use('/instructors', instructorRoutes);

@@ -106,7 +106,8 @@ function validatePreview(payload = {}) {
         ) {
           errors.push({
             field: `expectedCandidates.${rawExamId}`,
-            message: 'Candidate count must be a whole number from 1 to 100000.',
+            message:
+              'Candidate count must be a whole number from 1 to 100000.',
           });
           continue;
         }
@@ -117,7 +118,10 @@ function validatePreview(payload = {}) {
   }
 
   return {
-    value: { examPeriodId, expectedCandidates },
+    value: {
+      examPeriodId,
+      expectedCandidates,
+    },
     errors,
   };
 }

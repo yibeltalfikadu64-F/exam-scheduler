@@ -949,6 +949,215 @@ body.dark .ts-form-hint,
     min-width: 115px;
 }
 
+/* ==================== TABS ==================== */
+
+.ts-tabs {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 24px;
+    padding: 5px;
+    background: var(--ts-surface);
+    border: 1px solid var(--ts-border);
+    border-radius: 13px;
+    box-shadow: var(--ts-shadow);
+}
+
+.ts-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    min-height: 40px;
+    padding: 8px 18px;
+    color: var(--ts-muted);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    font-size: 0.85rem;
+    font-weight: 750;
+    white-space: nowrap;
+}
+
+.ts-tab:hover:not(.is-active) {
+    color: var(--ts-primary);
+    background: var(--ts-primary-light);
+}
+
+.ts-tab.is-active {
+    color: #ffffff;
+    background: linear-gradient(135deg, #6366f1, #4338ca);
+    box-shadow: 0 5px 16px rgba(79, 70, 229, 0.22);
+}
+
+/* ==================== PERIOD LIFE-CYCLE STATUS ==================== */
+
+.ts-status--draft {
+    color: #475569;
+    background: #f1f5f9;
+    border-color: #e2e8f0;
+}
+
+.ts-status--open {
+    color: #0369a1;
+    background: #e0f2fe;
+    border-color: #bae6fd;
+}
+
+.ts-status--published {
+    color: #047857;
+    background: #d1fae5;
+    border-color: #a7f3d0;
+}
+
+.ts-status--closed {
+    color: #b45309;
+    background: #fef3c7;
+    border-color: #fde68a;
+}
+
+.ts-status--archived {
+    color: #6d28d9;
+    background: #ede9fe;
+    border-color: #ddd6fe;
+}
+
+.dark .ts-status--draft,
+.theme-dark .ts-status--draft,
+body.dark .ts-status--draft,
+[data-theme="dark"] .ts-status--draft {
+    color: #cbd5e1;
+    background: #283449;
+    border-color: #3a4960;
+}
+
+.dark .ts-status--open,
+.theme-dark .ts-status--open,
+body.dark .ts-status--open,
+[data-theme="dark"] .ts-status--open {
+    color: #7dd3fc;
+    background: #14344a;
+    border-color: #2b5a78;
+}
+
+.dark .ts-status--published,
+.theme-dark .ts-status--published,
+body.dark .ts-status--published,
+[data-theme="dark"] .ts-status--published {
+    color: #6ee7b7;
+    background: #15382f;
+    border-color: #28634f;
+}
+
+.dark .ts-status--closed,
+.theme-dark .ts-status--closed,
+body.dark .ts-status--closed,
+[data-theme="dark"] .ts-status--closed {
+    color: #fcd34d;
+    background: #3b2f14;
+    border-color: #6d5520;
+}
+
+.dark .ts-status--archived,
+.theme-dark .ts-status--archived,
+body.dark .ts-status--archived,
+[data-theme="dark"] .ts-status--archived {
+    color: #c4b5fd;
+    background: #2b2547;
+    border-color: #483f78;
+}
+
+/* ==================== DANGER ACTION + STATUS SELECT ==================== */
+
+.ts-action--danger {
+    color: var(--ts-red);
+    background: #fef2f2;
+    border-color: #fecaca;
+}
+
+.ts-action--danger:hover:not(:disabled) {
+    color: #ffffff;
+    background: #dc2626;
+    border-color: #dc2626;
+    box-shadow: 0 4px 10px rgba(220, 38, 38, 0.2);
+}
+
+.dark .ts-action--danger,
+.theme-dark .ts-action--danger,
+body.dark .ts-action--danger,
+[data-theme="dark"] .ts-action--danger {
+    color: #fca5a5;
+    background: #351c29;
+    border-color: #743343;
+}
+
+.ts-period-status-select {
+    height: 36px;
+    padding: 0 30px 0 10px;
+    color: var(--ts-text);
+    background-color: var(--ts-surface);
+    border: 1px solid var(--ts-border);
+    border-radius: 9px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.ts-period-status-select:hover {
+    border-color: var(--ts-primary);
+}
+
+.ts-period-status-select option {
+    color: var(--ts-text);
+    background: var(--ts-surface);
+}
+
+/* ==================== PERIOD FORM CONTROLS ==================== */
+
+.ts-field select,
+.ts-field textarea {
+    width: 100%;
+    min-width: 0;
+    padding: 11px 13px;
+    color: var(--ts-text);
+    background: var(--ts-surface);
+    border: 1px solid var(--ts-border);
+    border-radius: 10px;
+    outline: none;
+    font: inherit;
+    font-size: 0.88rem;
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.ts-field select {
+    height: 45px;
+    padding: 0 35px 0 13px;
+    cursor: pointer;
+}
+
+.ts-field textarea {
+    resize: vertical;
+    min-height: 84px;
+    line-height: 1.6;
+}
+
+.ts-field select:hover,
+.ts-field textarea:hover {
+    border-color: var(--ts-primary);
+}
+
+.ts-field select:focus,
+.ts-field textarea:focus {
+    border-color: var(--ts-primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.13);
+}
+
+.ts-field select option {
+    color: var(--ts-text);
+    background: var(--ts-surface);
+}
+
 /* ==================== ANIMATIONS ==================== */
 
 @keyframes ts-spin {
@@ -1036,6 +1245,18 @@ body.dark .ts-form-hint,
 
     .ts-heading>button {
         width: 100%;
+    }
+
+    .ts-tabs {
+        display: flex;
+        width: 100%;
+        margin-bottom: 18px;
+    }
+
+    .ts-tab {
+        flex: 1;
+        justify-content: center;
+        padding: 8px 10px;
     }
 
     .ts-stats {

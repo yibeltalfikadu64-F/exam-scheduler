@@ -56,6 +56,11 @@ const courseService = {
    */
   setStatus: (id, isActive) =>
     api.patch(`/courses/${id}/status`, { isActive }),
+
+  /**
+   * Delete a course (admin only; refused while sections/exams/enrollments exist).
+   */
+  remove: (id) => api.delete(`/courses/${id}`),
 };
 
 export default courseService;

@@ -297,6 +297,16 @@
     gap: 6px;
 }
 
+.students-delete {
+    color: #b91c1c;
+}
+
+.students-delete:hover:not(:disabled) {
+    color: #ffffff;
+    background: #dc2626;
+    border-color: #dc2626;
+}
+
 .students-table-footer {
     padding: var(--space-3) var(--space-5);
     border-top: 1px solid var(--border-color);

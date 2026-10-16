@@ -912,6 +912,16 @@
     border-color: color-mix(in srgb, var(--department-success) 40%, transparent);
 }
 
+.department-action-delete {
+    color: #b91c1c;
+}
+
+.department-action-delete:hover {
+    color: #ffffff;
+    background: #dc2626;
+    border-color: #dc2626;
+}
+
 /* =========================================
    EMPTY & LOADING STATES
 ========================================= */

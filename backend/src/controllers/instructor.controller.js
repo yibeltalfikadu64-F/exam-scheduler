@@ -61,4 +61,12 @@ const setStatus = asyncHandler(async (req, res) => {
   );
 });
 
-module.exports = { list, options, getOne, create, update, setStatus };
+const remove = asyncHandler(async (req, res) =>
+  ApiResponse.success(
+    res,
+    await instructorService.deleteInstructor(parseId(req.params.id), req.user, requestMeta(req)),
+    'Instructor deleted successfully.'
+  )
+);
+
+module.exports = { list, options, getOne, create, update, setStatus, remove };

@@ -111,9 +111,9 @@ export default function Topbar() {
         <button
           type="button"
           className="btn btn-icon"
-          disabled
-          aria-label="Notifications (coming soon)"
-          title="Notifications are added in a later phase"
+          onClick={() => navigate('/notifications')}
+          aria-label="View notifications"
+          title="View notifications"
         >
           <Bell size={18} />
         </button>

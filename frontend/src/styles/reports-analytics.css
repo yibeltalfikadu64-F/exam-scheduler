@@ -648,6 +648,123 @@ body.dark .reports-page,
     text-align: center;
 }
 
+/* ===================== HEADER ACTIONS ===================== */
+
+.reports-header-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.reports-refresh-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    min-height: 44px;
+    padding: 11px 16px;
+    color: var(--report-text);
+    background: var(--report-surface);
+    border: 1px solid var(--report-border);
+    border-radius: 11px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    transition:
+        background 0.2s ease,
+        color 0.2s ease,
+        border-color 0.2s ease,
+        transform 0.2s ease;
+}
+
+.reports-refresh-button:not(:disabled):hover {
+    color: var(--report-primary);
+    background: var(--report-primary-soft);
+    border-color: var(--report-primary);
+    transform: translateY(-2px);
+}
+
+.reports-refresh-button:not(:disabled):active {
+    transform: scale(0.97);
+}
+
+.reports-refresh-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.reports-spinner {
+    animation: reportsSpin 0.8s linear infinite;
+}
+
+.reports-spinning {
+    animation: reportsSpin 0.8s linear infinite;
+}
+
+@keyframes reportsSpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ===================== STATE BLOCKS ===================== */
+
+.reports-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 320px;
+    padding: 40px 20px;
+    margin-bottom: 27px;
+    color: var(--report-primary);
+    text-align: center;
+    background: var(--report-surface);
+    border: 1px solid var(--report-border);
+    border-radius: 17px;
+    box-shadow: var(--report-shadow);
+}
+
+.reports-state h3 {
+    margin: 6px 0 0;
+    color: var(--report-text);
+    font-size: 16px;
+    font-weight: 800;
+}
+
+.reports-state p {
+    max-width: 360px;
+    margin: 0 0 6px;
+    color: var(--report-text-secondary);
+    font-size: 12.5px;
+    line-height: 1.7;
+}
+
+.reports-state-error {
+    color: var(--report-red);
+    background: var(--report-red-soft);
+    border-color: color-mix(in srgb, var(--report-red) 22%, transparent);
+}
+
+.reports-chart-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    margin: 0;
+    color: var(--report-muted);
+    font-size: 12.5px;
+    text-align: center;
+}
+
+.reports-chart-empty-table {
+    min-height: 140px;
+    padding: 34px 20px;
+}
+
 /* ===================== TABLET ===================== */
 
 @media (max-width: 1200px) {
@@ -727,8 +844,13 @@ body.dark .reports-page,
         font-size: 11.5px;
     }
 
-    .reports-header>.reports-export-button {
+    .reports-header-actions {
         width: 100%;
+    }
+
+    .reports-header-actions .reports-refresh-button,
+    .reports-header-actions .reports-export-button {
+        flex: 1;
     }
 
     .reports-demo-notice {

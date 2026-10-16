@@ -269,13 +269,79 @@ async function setDepartmentStatus(id, isActive, actor, meta) {
   return updated;
 }
 
-/** Dependency counts (programs/courses) shown before deactivation. */
+/** Dependency counts (programs/courses/etc.) shown before deactivation or deletion. */
 async function getDependencies(id) {
-  const [[programRows], [courseRows]] = await Promise.all([
+  const [
+    [programRows],
+    [courseRows],
+    [userRows],
+    [instructorRows],
+    [invigilatorRows],
+    [constraintRows],
+  ] = await Promise.all([
     database.getPool().query('SELECT COUNT(*) AS total FROM programs WHERE department_id = ?', [id]),
     database.getPool().query('SELECT COUNT(*) AS total FROM courses WHERE department_id = ?', [id]),
+    database.getPool().query('SELECT COUNT(*) AS total FROM users WHERE department_id = ? AND deleted_at IS NULL', [id]),
+    database.getPool().query('SELECT COUNT(*) AS total FROM instructors WHERE department_id = ?', [id]),
+    database.getPool().query('SELECT COUNT(*) AS total FROM invigilators WHERE department_id = ?', [id]),
+    database.getPool().query('SELECT COUNT(*) AS total FROM schedule_constraints WHERE department_id = ?', [id]),
   ]);
-  return { programs: Number(programRows[0].total), courses: Number(courseRows[0].total) };
+
+  const counts = {
+    programs: Number(programRows[0].total),
+    courses: Number(courseRows[0].total),
+    users: Number(userRows[0].total),
+    instructors: Number(instructorRows[0].total),
+    invigilators: Number(invigilatorRows[0].total),
+    scheduleConstraints: Number(constraintRows[0].total),
+  };
+
+  return {
+    ...counts,
+    canDelete: Object.values(counts).every((count) => count === 0),
+  };
+}
+
+/**
+ * Hard-delete a department only when nothing references it. Deleting otherwise
+ * would cascade-delete programs/courses (and their sections and exams), so the
+ * operation is refused while any dependent record exists.
+ */
+async function deleteDepartment(id, actor, meta) {
+  const before = await requireDepartment(id);
+  const dependencies = await getDependencies(id);
+
+  if (!dependencies.canDelete) {
+    throw ApiError.conflict('This department cannot be deleted because records depend on it.', {
+      code: 'DEPARTMENT_IN_USE',
+      details: [
+        { field: 'programs', message: `${dependencies.programs} program(s) reference this department.` },
+        { field: 'courses', message: `${dependencies.courses} course(s) reference this department.` },
+        { field: 'users', message: `${dependencies.users} user(s) belong to this department.` },
+        { field: 'instructors', message: `${dependencies.instructors} instructor(s) belong to this department.` },
+      ],
+    });
+  }
+
+  try {
+    await database.getPool().query('DELETE FROM departments WHERE id = ?', [id]);
+  } catch (error) {
+    if (error && (error.code === 'ER_ROW_IS_REFERENCED_2' || error.code === 'ER_ROW_IS_REFERENCED')) {
+      throw ApiError.conflict('This department is still referenced by other records.', { code: 'DEPARTMENT_IN_USE' });
+    }
+    throw error;
+  }
+
+  await auditService.record({
+    userId: actor.id,
+    action: 'department.delete',
+    entityType: 'department',
+    entityId: id,
+    before: { code: before.code, name: before.name },
+    ipAddress: meta.ip,
+    userAgent: meta.userAgent,
+  });
+  return { id, deleted: true };
 }
 
 module.exports = {
@@ -286,4 +352,5 @@ module.exports = {
   createDepartment,
   updateDepartment,
   setDepartmentStatus,
+  deleteDepartment,
 };

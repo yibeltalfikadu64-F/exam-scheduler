@@ -279,11 +279,69 @@ async function setProgramStatus(id, isActive, actor, meta) {
   return updated;
 }
 
+/** Dependency counts used before deleting / deactivating a program. */
+async function getProgramDependencies(id) {
+  const [[courseRows], [sectionRows], [studentRows]] = await Promise.all([
+    database.getPool().query('SELECT COUNT(*) AS total FROM courses WHERE program_id = ?', [id]),
+    database.getPool().query('SELECT COUNT(*) AS total FROM sections WHERE program_id = ?', [id]),
+    database.getPool().query('SELECT COUNT(*) AS total FROM students WHERE program_id = ?', [id]),
+  ]);
+  const counts = {
+    courses: Number(courseRows[0].total),
+    sections: Number(sectionRows[0].total),
+    students: Number(studentRows[0].total),
+  };
+  return { ...counts, canDelete: Object.values(counts).every((count) => count === 0) };
+}
+
+/**
+ * Hard-delete a program only when no course, section or student references it.
+ * (courses.program_id / sections.program_id / students.program_id are SET NULL,
+ * which would silently orphan records, so deletion is refused instead.)
+ */
+async function deleteProgram(id, actor, meta) {
+  const before = await requireProgram(id);
+  const dependencies = await getProgramDependencies(id);
+
+  if (!dependencies.canDelete) {
+    throw ApiError.conflict('This program cannot be deleted because records depend on it.', {
+      code: 'PROGRAM_IN_USE',
+      details: [
+        { field: 'courses', message: `${dependencies.courses} course(s) reference this program.` },
+        { field: 'sections', message: `${dependencies.sections} section(s) reference this program.` },
+        { field: 'students', message: `${dependencies.students} student(s) reference this program.` },
+      ],
+    });
+  }
+
+  try {
+    await database.getPool().query('DELETE FROM programs WHERE id = ?', [id]);
+  } catch (error) {
+    if (error && (error.code === 'ER_ROW_IS_REFERENCED_2' || error.code === 'ER_ROW_IS_REFERENCED')) {
+      throw ApiError.conflict('This program is still referenced by other records.', { code: 'PROGRAM_IN_USE' });
+    }
+    throw error;
+  }
+
+  await auditService.record({
+    userId: actor.id,
+    action: 'program.delete',
+    entityType: 'program',
+    entityId: id,
+    before: { code: before.code, name: before.name },
+    ipAddress: meta.ip,
+    userAgent: meta.userAgent,
+  });
+  return { id, deleted: true };
+}
+
 module.exports = {
   listPrograms,
   listOptions,
   getPublicById,
+  getProgramDependencies,
   createProgram,
   updateProgram,
   setProgramStatus,
+  deleteProgram,
 };

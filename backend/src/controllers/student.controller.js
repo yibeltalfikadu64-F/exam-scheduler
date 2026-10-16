@@ -78,4 +78,12 @@ const setEnrollmentStatus = asyncHandler(async (req, res) =>
   )
 );
 
-module.exports = { list, getOne, create, update, setStatus, listEnrollments, addEnrollment, setEnrollmentStatus };
+const remove = asyncHandler(async (req, res) =>
+  ApiResponse.success(
+    res,
+    await studentService.deleteStudent(parseId(req.params.id), req.user, requestMeta(req)),
+    'Student deleted successfully.'
+  )
+);
+
+module.exports = { list, getOne, create, update, setStatus, listEnrollments, addEnrollment, setEnrollmentStatus, remove };

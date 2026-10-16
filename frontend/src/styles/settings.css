@@ -706,6 +706,253 @@ body.dark .settings-page,
     line-height: 1.7;
 }
 
+/* ==================== HEADER ACTIONS & SAVE ==================== */
+
+.settings-header-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.settings-save-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    min-height: 41px;
+    padding: 10px 16px;
+    color: #ffffff;
+    background: var(--settings-primary);
+    border: 1px solid var(--settings-primary);
+    border-radius: 11px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 750;
+    transition:
+        background 0.2s ease,
+        box-shadow 0.2s ease,
+        transform 0.2s ease;
+}
+
+.settings-save-button:not(:disabled):hover {
+    background: var(--settings-primary-hover);
+    box-shadow: 0 8px 18px color-mix(in srgb, var(--settings-primary) 30%, transparent);
+    transform: translateY(-2px);
+}
+
+.settings-save-button:not(:disabled):active {
+    transform: scale(0.98);
+}
+
+.settings-save-button:disabled,
+.settings-reset-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* ==================== SPINNER ==================== */
+
+.settings-spinner {
+    animation: settingsSpin 0.8s linear infinite;
+}
+
+@keyframes settingsSpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ==================== FEEDBACK VARIANTS ==================== */
+
+.settings-feedback-error,
+.settings-feedback-success {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.settings-feedback-error {
+    color: var(--settings-red);
+    background: var(--settings-red-soft);
+    border-color: color-mix(in srgb, var(--settings-red) 25%, transparent);
+}
+
+.settings-feedback-success {
+    color: var(--settings-green);
+    background: var(--settings-green-soft);
+    border-color: color-mix(in srgb, var(--settings-green) 25%, transparent);
+}
+
+.settings-notice-warning {
+    color: var(--settings-orange);
+    background: var(--settings-orange-soft);
+    border-color: color-mix(in srgb, var(--settings-orange) 25%, transparent);
+}
+
+/* ==================== STATE ==================== */
+
+.settings-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 380px;
+    padding: 40px 20px;
+    color: var(--settings-primary);
+    text-align: center;
+}
+
+.settings-state h3 {
+    margin: 6px 0 0;
+    color: var(--settings-text);
+    font-size: 16px;
+    font-weight: 800;
+}
+
+.settings-state p {
+    max-width: 340px;
+    margin: 0;
+    color: var(--settings-muted);
+    font-size: 12px;
+    line-height: 1.7;
+}
+
+/* ==================== SETTING FIELDS ==================== */
+
+.settings-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.settings-field-label {
+    color: var(--settings-text);
+    font-size: 12.5px;
+    font-weight: 750;
+}
+
+.settings-field-hint {
+    color: var(--settings-muted);
+    font-size: 11px;
+    line-height: 1.6;
+}
+
+.settings-field-key {
+    color: var(--settings-muted);
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 10px;
+    opacity: 0.75;
+}
+
+.settings-field-control {
+    display: flex;
+    justify-content: flex-end;
+    flex-shrink: 0;
+    min-width: 180px;
+}
+
+.settings-input,
+.settings-select {
+    width: 100%;
+    max-width: 300px;
+    min-height: 40px;
+    padding: 0 13px;
+    color: var(--settings-text);
+    background: var(--settings-surface-alt);
+    border: 1px solid var(--settings-border);
+    border-radius: 10px;
+    outline: none;
+    font-size: 12px;
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.settings-select {
+    cursor: pointer;
+}
+
+.settings-input:focus,
+.settings-select:focus {
+    border-color: var(--settings-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--settings-primary) 16%, transparent);
+}
+
+.settings-input:disabled,
+.settings-select:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+/* ==================== TOGGLE ==================== */
+
+.settings-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 11px;
+    cursor: pointer;
+}
+
+.settings-toggle input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+.settings-toggle-track {
+    position: relative;
+    display: inline-block;
+    flex-shrink: 0;
+    width: 44px;
+    height: 25px;
+    background: var(--settings-border);
+    border-radius: 999px;
+    transition: background 0.2s ease;
+}
+
+.settings-toggle-track::after {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 19px;
+    height: 19px;
+    content: "";
+    background: #ffffff;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(20, 35, 70, 0.25);
+    transition: transform 0.2s ease;
+}
+
+.settings-toggle input:checked + .settings-toggle-track {
+    background: var(--settings-primary);
+}
+
+.settings-toggle input:checked + .settings-toggle-track::after {
+    transform: translateX(19px);
+}
+
+.settings-toggle input:disabled + .settings-toggle-track {
+    opacity: 0.6;
+}
+
+.settings-toggle input:focus-visible + .settings-toggle-track {
+    outline: 3px solid color-mix(in srgb, var(--settings-primary) 32%, transparent);
+    outline-offset: 3px;
+}
+
+.settings-toggle-text {
+    color: var(--settings-muted);
+    font-size: 11px;
+    font-weight: 650;
+}
+
 /* ==================== ANIMATION ==================== */
 
 @keyframes settingsEnter {
@@ -875,6 +1122,26 @@ body.dark .settings-page,
         flex-direction: column;
         gap: 9px;
         padding: 14px;
+    }
+
+    .settings-field-control {
+        width: 100%;
+        min-width: 0;
+        justify-content: flex-start;
+    }
+
+    .settings-input,
+    .settings-select {
+        max-width: none;
+    }
+
+    .settings-header-actions {
+        width: 100%;
+    }
+
+    .settings-header-actions .settings-reset-button,
+    .settings-header-actions .settings-save-button {
+        flex: 1;
     }
 
     .settings-role-row {

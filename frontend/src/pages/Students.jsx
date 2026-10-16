@@ -12,9 +12,11 @@ import {
   UserRound,
   CheckCircle2,
   AlertCircle,
+  Trash2,
 } from 'lucide-react';
 import api from '../services/api';
 import studentService from '../services/studentService';
+import { useAuth } from '../context/AuthContext';
 import '../styles/students.css';
 
 const EMPTY_FORM = {
@@ -86,6 +88,9 @@ function getProgramLabel(program) {
 }
 
 export default function Students() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+
   const [students, setStudents] = useState([]);
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -441,6 +446,36 @@ export default function Students() {
     }
   }
 
+  async function deleteStudentRecord(student) {
+    const label = student.fullName || student.studentNumber || `Student #${student.id}`;
+
+    if (
+      !window.confirm(
+        `Delete student "${label}"? This cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+
+    setNotice(null);
+
+    try {
+      await studentService.remove(student.id);
+
+      setNotice({
+        type: 'success',
+        text: 'Student deleted successfully.',
+      });
+
+      await loadStudents();
+    } catch (error) {
+      setNotice({
+        type: 'error',
+        text: errorMessage(error),
+      });
+    }
+  }
+
   function submitSearch(event) {
     event.preventDefault();
     setSearch(searchInput.trim());
@@ -776,6 +811,18 @@ export default function Students() {
                             <CheckCircle2 size={16} />
                           </button>
                         ) : null}
+
+                        {isAdmin && (
+                          <button
+                            className="btn btn-icon students-delete"
+                            type="button"
+                            title="Delete student"
+                            aria-label={`Delete ${student.fullName}`}
+                            onClick={() => deleteStudentRecord(student)}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

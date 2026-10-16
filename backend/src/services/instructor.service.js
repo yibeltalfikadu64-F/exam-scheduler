@@ -240,11 +240,72 @@ async function setInstructorStatus(id, isActive, actor, meta) {
   return updated;
 }
 
+/** Dependency counts used before deleting an instructor. */
+async function getInstructorDependencies(id) {
+  const [[assignmentRows], [sectionRows], [invigilationRows], [profileRows]] = await Promise.all([
+    database.getPool().query('SELECT COUNT(*) AS total FROM instructor_assignments WHERE instructor_id = ?', [id]),
+    database.getPool().query('SELECT COUNT(*) AS total FROM sections WHERE instructor_id = ?', [id]),
+    database.getPool().query('SELECT COUNT(*) AS total FROM invigilations WHERE instructor_id = ?', [id]),
+    database.getPool().query('SELECT COUNT(*) AS total FROM invigilators WHERE instructor_id = ?', [id]),
+  ]);
+  const counts = {
+    assignments: Number(assignmentRows[0].total),
+    sections: Number(sectionRows[0].total),
+    invigilations: Number(invigilationRows[0].total),
+    invigilatorProfiles: Number(profileRows[0].total),
+  };
+  // invigilations / invigilators are SET NULL; assignments cascade and sections
+  // retain a hard reference, so both must be empty to allow deletion.
+  return { ...counts, canDelete: counts.assignments === 0 && counts.sections === 0 };
+}
+
+/**
+ * Hard-delete an instructor profile only when no teaching assignment or section
+ * references it.
+ */
+async function deleteInstructor(id, actor, meta) {
+  const before = await requireInstructor(id);
+  assertDepartmentScope(actor, before.department_id);
+  const dependencies = await getInstructorDependencies(id);
+
+  if (!dependencies.canDelete) {
+    throw ApiError.conflict('This instructor cannot be deleted because records depend on them.', {
+      code: 'INSTRUCTOR_IN_USE',
+      details: [
+        { field: 'assignments', message: `${dependencies.assignments} instructor assignment(s) reference this instructor.` },
+        { field: 'sections', message: `${dependencies.sections} section(s) are taught by this instructor.` },
+      ],
+    });
+  }
+
+  try {
+    await database.getPool().query('DELETE FROM instructors WHERE id = ?', [id]);
+  } catch (error) {
+    if (error && (error.code === 'ER_ROW_IS_REFERENCED_2' || error.code === 'ER_ROW_IS_REFERENCED')) {
+      throw ApiError.conflict('This instructor is still referenced by other records.', { code: 'INSTRUCTOR_IN_USE' });
+    }
+    throw error;
+  }
+
+  await auditService.record({
+    userId: actor.id,
+    action: 'instructor.delete',
+    entityType: 'instructor',
+    entityId: id,
+    before: { staffNumber: before.staff_number, userId: before.user_id },
+    ipAddress: meta.ip,
+    userAgent: meta.userAgent,
+  });
+  return { id, deleted: true };
+}
+
 module.exports = {
   listInstructors,
   listOptions,
   getInstructorById,
+  getInstructorDependencies,
   createInstructor,
   updateInstructor,
   setInstructorStatus,
+  deleteInstructor,
 };

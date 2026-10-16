@@ -58,6 +58,12 @@ const departmentService = {
    */
   setStatus: (id, isActive) =>
     api.patch(`/departments/${id}/status`, { isActive }),
+
+  /**
+   * Delete a department (admin only; refused while dependents exist).
+   */
+  remove: (id) =>
+    api.delete(`/departments/${id}`),
 };
 
 export default departmentService;

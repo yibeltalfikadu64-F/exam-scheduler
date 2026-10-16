@@ -8,7 +8,7 @@
  *   Admin, registrar, department head, instructor, student.
  *
  * WRITE:
- *   Admin and registrar.
+ *   Admin only.
  *
  * Departments are deactivated rather than deleted to prevent
  * programs and courses from becoming orphaned.
@@ -45,6 +45,7 @@ const router = express.Router();
 // Require authentication for every department endpoint.
 router.use(authenticate);
 
+// Roles allowed to view departments.
 const CAN_READ = [
     'admin',
     'registrar',
@@ -53,10 +54,8 @@ const CAN_READ = [
     'student',
 ];
 
-const CAN_WRITE = [
-    'admin',
-    'registrar',
-];
+// Only administrators can manage departments.
+const CAN_MANAGE = ['admin', 'registrar'];
 
 /**
  * GET /api/v1/departments/options
@@ -83,11 +82,11 @@ router.get(
 
 /**
  * POST /api/v1/departments
- * Create a department.
+ * Create a department. Admin only.
  */
 router.post(
     '/',
-    authorize(CAN_WRITE),
+    authorize(CAN_MANAGE),
     validate(validateCreateDepartment),
     departmentController.create
 );
@@ -114,24 +113,34 @@ router.get(
 
 /**
  * PATCH /api/v1/departments/:id
- * Update a department.
+ * Update a department. Admin only.
  */
 router.patch(
     '/:id',
-    authorize(CAN_WRITE),
+    authorize(CAN_MANAGE),
     validate(validateUpdateDepartment),
     departmentController.update
 );
 
 /**
  * PATCH /api/v1/departments/:id/status
- * Activate or deactivate a department.
+ * Activate or deactivate a department. Admin only.
  */
 router.patch(
     '/:id/status',
-    authorize(CAN_WRITE),
+    authorize(CAN_MANAGE),
     validate(validateStatusToggle),
     departmentController.setStatus
+);
+
+/**
+ * DELETE /api/v1/departments/:id
+ * Delete a department. Admin only; refused while dependents exist.
+ */
+router.delete(
+    '/:id',
+    authorize('admin'),
+    departmentController.remove
 );
 
 module.exports = router;

@@ -11,6 +11,7 @@ const instructorService = {
   update: (id, payload) => api.patch(`/instructors/${id}`, payload),
   setStatus: (id, isActive) =>
     api.patch(`/instructors/${id}/status`, { isActive }),
+  remove: (id) => api.delete(`/instructors/${id}`),
 };
 
 export default instructorService;

@@ -38,7 +38,7 @@ router.use(authenticate);
 
 const CAN_READ = ['admin', 'registrar', 'department_head', 'instructor'];
 const CAN_MANAGE = ['admin', 'registrar', 'department_head'];
-const CAN_POLICY = ['admin', 'registrar'];
+const CAN_POLICY = ['admin'];
 const CAN_PUBLISH = ['admin', 'registrar'];
 
 // Settings & requirements (policy)

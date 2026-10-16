@@ -21,6 +21,7 @@ const programService = {
   create: (payload) => api.post('/programs', payload),
   update: (id, payload) => api.patch(`/programs/${id}`, payload),
   setStatus: (id, isActive) => api.patch(`/programs/${id}/status`, { isActive }),
+  remove: (id) => api.delete(`/programs/${id}`),
 };
 
 export default programService;

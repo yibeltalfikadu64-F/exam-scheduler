@@ -29,6 +29,8 @@ const schedulingRoutes = require('./scheduling.routes');
 const invigilatorRoutes = require('./invigilator.routes');
 const invigilationRoutes = require('./invigilation.routes');
 const notificationRoutes = require('./notification.routes');
+const reportRoutes = require('./report.routes');
+const settingsRoutes = require('./settings.routes');
 
 const router = express.Router();
 
@@ -63,6 +65,8 @@ router.get('/', (req, res) => {
         invigilators: `${config.apiPrefix}/invigilators`,
         invigilation: `${config.apiPrefix}/invigilation`,
         notifications: `${config.apiPrefix}/notifications`,
+        reports: `${config.apiPrefix}/reports`,
+        settings: `${config.apiPrefix}/settings`,
       },
     },
     meta: {
@@ -92,5 +96,7 @@ router.use('/scheduling', schedulingRoutes);
 router.use('/invigilators', invigilatorRoutes);
 router.use('/invigilation', invigilationRoutes);
 router.use('/notifications', notificationRoutes);
+router.use('/reports', reportRoutes);
+router.use('/settings', settingsRoutes);
 
 module.exports = router;

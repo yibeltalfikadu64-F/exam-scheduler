@@ -660,6 +660,16 @@ body.dark .instructors-page,
     font-size: 11px;
 }
 
+.instructors-delete {
+    color: var(--ins-red);
+}
+
+.instructors-delete:hover:not(:disabled) {
+    color: #ffffff;
+    background: #dc2626;
+    border-color: #dc2626;
+}
+
 .instructors-table-footer {
     display: flex;
     align-items: center;

@@ -382,13 +382,74 @@ async function setEnrollmentStatus(studentId, enrollmentId, status, actor, meta)
   return getEnrollment(studentId, enrollmentId);
 }
 
+/** Dependency counts used before deleting a student. */
+async function getStudentDependencies(id) {
+  const [[enrollmentRows], [scheduledRows]] = await Promise.all([
+    database.getPool().query('SELECT COUNT(*) AS total FROM enrollments WHERE student_id = ?', [id]),
+    database.getPool().query(
+      `SELECT COUNT(DISTINCT esd.id) AS total
+         FROM enrollments e
+         JOIN exam_schedule_details esd ON esd.section_id = e.section_id
+        WHERE e.student_id = ?`,
+      [id]
+    ),
+  ]);
+  const counts = {
+    enrollments: Number(enrollmentRows[0].total),
+    scheduledExams: Number(scheduledRows[0].total),
+  };
+  return { ...counts, canDelete: counts.enrollments === 0 && counts.scheduledExams === 0 };
+}
+
+/**
+ * Hard-delete a student only when they have no enrollments (and therefore no
+ * examination assignments). Enrollments cascade on delete, so this is refused
+ * while the student is enrolled anywhere.
+ */
+async function deleteStudent(id, actor, meta) {
+  const before = await requireStudent(id);
+  const dependencies = await getStudentDependencies(id);
+
+  if (!dependencies.canDelete) {
+    throw ApiError.conflict('This student cannot be deleted because enrollment records depend on them.', {
+      code: 'STUDENT_IN_USE',
+      details: [
+        { field: 'enrollments', message: `${dependencies.enrollments} enrollment(s) reference this student.` },
+        { field: 'scheduledExams', message: `${dependencies.scheduledExams} scheduled exam(s) involve this student's sections.` },
+      ],
+    });
+  }
+
+  try {
+    await database.getPool().query('DELETE FROM students WHERE id = ?', [id]);
+  } catch (error) {
+    if (error && (error.code === 'ER_ROW_IS_REFERENCED_2' || error.code === 'ER_ROW_IS_REFERENCED')) {
+      throw ApiError.conflict('This student is still referenced by other records.', { code: 'STUDENT_IN_USE' });
+    }
+    throw error;
+  }
+
+  await auditService.record({
+    userId: actor.id,
+    action: 'student.delete',
+    entityType: 'student',
+    entityId: id,
+    before: { studentNumber: before.student_number, fullName: before.full_name },
+    ipAddress: meta.ip,
+    userAgent: meta.userAgent,
+  });
+  return { id, deleted: true };
+}
+
 module.exports = {
   listStudents,
   getStudentById,
+  getStudentDependencies,
   createStudent,
   updateStudent,
   setStudentStatus,
   listEnrollments,
   addEnrollment,
   setEnrollmentStatus,
+  deleteStudent,
 };

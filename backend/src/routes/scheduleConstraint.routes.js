@@ -23,7 +23,7 @@ const router = express.Router();
 router.use(authenticate);
 
 const CAN_READ = ['admin', 'registrar', 'department_head', 'instructor', 'student'];
-const CAN_WRITE = ['admin', 'registrar'];
+const CAN_WRITE = ['admin'];
 
 router.get('/', authorize(CAN_READ), validate(validateConstraintListQuery, 'query'), scheduleConstraintController.list);
 router.get('/:id', authorize(CAN_READ), scheduleConstraintController.getOne);

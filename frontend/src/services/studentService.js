@@ -23,6 +23,8 @@ const studentService = {
             `/students/${studentId}/enrollments/${enrollmentId}`,
             { status }
         ),
+
+    remove: (id) => api.delete(`/students/${id}`),
 };
 
 export default studentService;

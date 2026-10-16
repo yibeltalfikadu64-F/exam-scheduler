@@ -28,7 +28,7 @@ const router = express.Router();
 router.use(authenticate);
 
 const CAN_READ = ['admin', 'registrar', 'department_head', 'instructor', 'student'];
-const CAN_WRITE = ['admin', 'registrar'];
+const CAN_WRITE = ['admin'];
 
 router.get('/options', authorize(CAN_READ), academicYearController.options);
 router.get('/', authorize(CAN_READ), validate(validateAcademicYearListQuery, 'query'), academicYearController.list);

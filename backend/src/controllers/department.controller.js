@@ -172,6 +172,26 @@ const setStatus = asyncHandler(async (req, res) => {
   );
 });
 
+/**
+ * DELETE /api/v1/departments/:id
+ * Delete a department when nothing depends on it.
+ */
+const remove = asyncHandler(async (req, res) => {
+  const id = parseId(req.params.id);
+
+  const result = await departmentService.deleteDepartment(
+    id,
+    req.user,
+    requestMeta(req)
+  );
+
+  return ApiResponse.success(
+    res,
+    result,
+    'Department deleted successfully.'
+  );
+});
+
 module.exports = {
   list,
   options,
@@ -180,4 +200,5 @@ module.exports = {
   create,
   update,
   setStatus,
+  remove,
 };

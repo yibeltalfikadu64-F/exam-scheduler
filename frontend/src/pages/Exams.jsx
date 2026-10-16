@@ -1,15 +1,35 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ClipboardList,
+  Pencil,
   Plus,
   RefreshCw,
   Search,
+  Trash2,
   X,
 } from 'lucide-react';
 
 import api from '../services/api';
 import courseService from '../services/courseService';
+import { useAuth } from '../context/AuthContext';
 import './Exams.css';
+
+const EXAM_TYPE_LABELS = {
+  midterm: 'Midterm Exam',
+  final: 'Final Exam',
+  quiz: 'Quiz',
+  practical: 'Practical Exam',
+  supplementary: 'Supplementary Exam',
+  other: 'Exam',
+};
+
+const EXAM_STATUS_VALUES = [
+  'draft',
+  'scheduled',
+  'published',
+  'cancelled',
+  'completed',
+];
 
 const initialForm = {
   courseId: '',
@@ -47,19 +67,19 @@ function getItems(response, keys = []) {
 }
 
 function getErrorMessage(error) {
-  const body = error?.response?.data;
-  const details = body?.details ?? body?.errors;
+  // api.js normalizes errors to { message, status, code, details }.
+  const details = error?.details;
 
   if (Array.isArray(details) && details.length) {
     const messages = details
       .map((item) => {
-        const field = item.field ? `${item.field}: ` : '';
-        return `${field}${item.message ?? item.msg ?? ''}`;
+        const field = item?.field ? `${item.field}: ` : '';
+        return `${field}${item?.message ?? item?.msg ?? ''}`;
       })
       .filter((message) => message.trim() !== '');
 
     if (messages.length) {
-      return `${body?.message ?? 'Validation failed.'} ${messages.join(' ')}`;
+      return `${error?.message ?? 'Validation failed.'} ${messages.join(' ')}`;
     }
   }
 
@@ -73,12 +93,11 @@ function getErrorMessage(error) {
     });
 
     if (messages.length) {
-      return `${body?.message ?? 'Request failed.'} ${messages.join(' ')}`;
+      return `${error?.message ?? 'Request failed.'} ${messages.join(' ')}`;
     }
   }
 
   return (
-    body?.message ||
     error?.message ||
     'Something went wrong. Please try again.'
   );
@@ -297,6 +316,10 @@ function getExamAcademicYearLabel(exam) {
 }
 
 export default function Exams() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+  const canWrite = ['admin', 'registrar', 'department_head'].includes(user?.role);
+
   const [courses, setCourses] = useState([]);
   const [sections, setSections] = useState([]);
   const [rooms, setRooms] = useState([]);
@@ -308,6 +331,10 @@ export default function Exams() {
   const [form, setForm] = useState(initialForm);
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
+
+  const [editingExam, setEditingExam] = useState(null);
+  const [editForm, setEditForm] = useState(null);
+  const [actionId, setActionId] = useState(null);
 
   const [loading, setLoading] = useState(true);
   const [coursesLoading, setCoursesLoading] = useState(false);
@@ -659,16 +686,128 @@ export default function Exams() {
 
       await loadExams();
     } catch (err) {
-      const responseData = err?.response?.data;
-
-      console.error(
-        'Create exam failed:',
-        JSON.stringify(responseData ?? err, null, 2)
-      );
-
       setError(getErrorMessage(err));
     } finally {
       setSaving(false);
+    }
+  }
+
+  function openEditExam(exam) {
+    setError('');
+    setMessage('');
+    setEditingExam(exam);
+    setEditForm({
+      examType: exam?.examType ?? 'final',
+      durationMinutes: String(exam?.durationMinutes ?? 120),
+      requiredRoomType: exam?.requiredRoomType ?? 'lecture',
+      requiredCapacity:
+        exam?.requiredCapacity != null ? String(exam.requiredCapacity) : '',
+      notes: exam?.notes ?? '',
+    });
+  }
+
+  function closeEditExam() {
+    if (saving) return;
+    setEditingExam(null);
+    setEditForm(null);
+  }
+
+  function updateEditField(event) {
+    const { name, value } = event.target;
+    setEditForm((current) => ({ ...current, [name]: value }));
+  }
+
+  async function handleEditSubmit(event) {
+    event.preventDefault();
+    setError('');
+    setMessage('');
+
+    if (!editingExam) return;
+
+    const duration = Number(editForm.durationMinutes);
+
+    if (!Number.isInteger(duration) || duration <= 0 || duration > 1440) {
+      setError('Duration must be a whole number between 1 and 1440 minutes.');
+      return;
+    }
+
+    const capacity =
+      editForm.requiredCapacity === '' ? null : Number(editForm.requiredCapacity);
+
+    if (
+      capacity !== null &&
+      (!Number.isInteger(capacity) || capacity <= 0 || capacity > 100000)
+    ) {
+      setError('Required capacity must be a positive whole number.');
+      return;
+    }
+
+    const title = `${getExamCourseLabel(editingExam)} — ${
+      EXAM_TYPE_LABELS[editForm.examType] ?? 'Exam'
+    }`;
+
+    const payload = {
+      title,
+      examType: editForm.examType,
+      durationMinutes: Number(editForm.durationMinutes),
+      requiredRoomType: editForm.requiredRoomType || null,
+      requiredCapacity: capacity,
+      notes: editForm.notes.trim() || null,
+    };
+
+    setSaving(true);
+    try {
+      await api.patch(`/exams/${getExamId(editingExam)}`, payload);
+      setMessage('Exam updated successfully.');
+      setEditingExam(null);
+      setEditForm(null);
+      await loadExams();
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function changeExamStatus(exam, status) {
+    if (status === exam.status) return;
+
+    const id = getExamId(exam);
+    setError('');
+    setMessage('');
+    setActionId(id);
+
+    try {
+      await api.patch(`/exams/${id}/status`, { status });
+      setMessage(`Exam marked as ${status}.`);
+      await loadExams();
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setActionId(null);
+    }
+  }
+
+  async function deleteExamRecord(exam) {
+    const id = getExamId(exam);
+    const label = exam.title || getExamCourseLabel(exam);
+
+    if (!window.confirm(`Delete exam "${label}"? This cannot be undone.`)) {
+      return;
+    }
+
+    setError('');
+    setMessage('');
+    setActionId(id);
+
+    try {
+      await api.delete(`/exams/${id}`);
+      setMessage('Exam deleted successfully.');
+      await loadExams();
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setActionId(null);
     }
   }
 
@@ -1027,36 +1166,253 @@ export default function Exams() {
                   <th>Duration</th>
                   <th>Students</th>
                   <th>Status</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
 
               <tbody>
-                {filteredExams.map((exam, index) => (
-                  <tr key={getExamId(exam) ?? index}>
-                    <td>{getExamCourseLabel(exam)}</td>
-                    <td>{getExamType(exam)}</td>
-                    <td>{getExamAcademicYearLabel(exam)}</td>
-                    <td>{getExamSemesterLabel(exam)}</td>
-                    <td>{getExamDuration(exam)} min</td>
-                    <td>
-                      {exam.enrollmentCount ?? exam.enrollment_count ?? 0}
-                    </td>
-                    <td>
-                      <span
-                        className={`exam-status exam-status-${String(
-                          exam.status ?? 'draft'
-                        ).toLowerCase()}`}
-                      >
-                        {exam.status ?? 'draft'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {filteredExams.map((exam, index) => {
+                  const examId = getExamId(exam);
+                  const busy = actionId === examId;
+
+                  return (
+                    <tr key={examId ?? index}>
+                      <td>{getExamCourseLabel(exam)}</td>
+                      <td>{getExamType(exam)}</td>
+                      <td>{getExamAcademicYearLabel(exam)}</td>
+                      <td>{getExamSemesterLabel(exam)}</td>
+                      <td>{getExamDuration(exam)} min</td>
+                      <td>
+                        {exam.enrollmentCount ?? exam.enrollment_count ?? 0}
+                      </td>
+                      <td>
+                        <span
+                          className={`exam-status exam-status-${String(
+                            exam.status ?? 'draft'
+                          ).toLowerCase()}`}
+                        >
+                          {exam.status ?? 'draft'}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="exams-row-actions">
+                          {canWrite && (
+                            <button
+                              type="button"
+                              className="exams-icon-btn"
+                              onClick={() => openEditExam(exam)}
+                              title="Edit exam"
+                              aria-label={`Edit ${exam.title ?? examId}`}
+                              disabled={busy}
+                            >
+                              <Pencil size={15} />
+                            </button>
+                          )}
+
+                          {canWrite && (
+                            <select
+                              className="exams-status-select"
+                              value={exam.status ?? 'draft'}
+                              onChange={(event) =>
+                                changeExamStatus(exam, event.target.value)
+                              }
+                              disabled={busy}
+                              aria-label={`Change status for ${exam.title ?? examId}`}
+                            >
+                              {[
+                                'draft',
+                                'scheduled',
+                                'published',
+                                'cancelled',
+                                'completed',
+                              ].map((status) => (
+                                <option key={status} value={status}>
+                                  {status}
+                                </option>
+                              ))}
+                            </select>
+                          )}
+
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              className="exams-icon-btn exams-icon-btn-danger"
+                              onClick={() => deleteExamRecord(exam)}
+                              title="Delete exam"
+                              aria-label={`Delete ${exam.title ?? examId}`}
+                              disabled={busy}
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
       </section>
+
+      {editingExam && editForm && (
+        <div
+          className="exams-modal-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !saving) closeEditExam();
+          }}
+        >
+          <section
+            className="exams-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="exams-edit-title"
+          >
+            <div className="exams-form-header">
+              <div>
+                <h2 id="exams-edit-title">Edit exam</h2>
+                <p>
+                  Update the exam type, duration, and room requirements. Course,
+                  section, and calendar links stay fixed.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={closeEditExam}
+                disabled={saving}
+                aria-label="Close form"
+              >
+                <X size={16} />
+                Close
+              </button>
+            </div>
+
+            <div className="exams-edit-meta">
+              <span>
+                <strong>Course:</strong> {getExamCourseLabel(editingExam)}
+              </span>
+              <span>
+                <strong>Academic year:</strong> {getExamAcademicYearLabel(editingExam)}
+              </span>
+              <span>
+                <strong>Semester:</strong> {getExamSemesterLabel(editingExam)}
+              </span>
+              <span>
+                <strong>Exam period:</strong>{' '}
+                {editingExam.examPeriod
+                  ? getExamPeriodLabel(editingExam.examPeriod)
+                  : 'Not set'}
+              </span>
+            </div>
+
+            <form onSubmit={handleEditSubmit}>
+              <div className="exams-form">
+                <div className="form-group">
+                  <label htmlFor="editExamType">Exam Type *</label>
+                  <select
+                    id="editExamType"
+                    name="examType"
+                    value={editForm.examType}
+                    onChange={updateEditField}
+                    required
+                  >
+                    <option value="midterm">Midterm Exam</option>
+                    <option value="final">Final Exam</option>
+                    <option value="quiz">Quiz</option>
+                    <option value="practical">Practical Exam</option>
+                    <option value="supplementary">Supplementary Exam</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="editDuration">Duration (minutes) *</label>
+                  <input
+                    id="editDuration"
+                    name="durationMinutes"
+                    type="number"
+                    min="1"
+                    max="1440"
+                    step="1"
+                    value={editForm.durationMinutes}
+                    onChange={updateEditField}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="editRoomType">Required Room Type</label>
+                  <select
+                    id="editRoomType"
+                    name="requiredRoomType"
+                    value={editForm.requiredRoomType}
+                    onChange={updateEditField}
+                  >
+                    <option value="lecture">Lecture Room</option>
+                    <option value="lab">Laboratory</option>
+                    <option value="computer_lab">Computer Lab</option>
+                    <option value="hall">Examination Hall</option>
+                    <option value="seminar">Seminar Room</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="editCapacity">Required Capacity</label>
+                  <input
+                    id="editCapacity"
+                    name="requiredCapacity"
+                    type="number"
+                    min="1"
+                    max="100000"
+                    step="1"
+                    value={editForm.requiredCapacity}
+                    onChange={updateEditField}
+                    placeholder="Optional"
+                  />
+                </div>
+
+                <div className="form-group exams-form-full">
+                  <label htmlFor="editNotes">Notes</label>
+                  <textarea
+                    id="editNotes"
+                    name="notes"
+                    value={editForm.notes}
+                    onChange={updateEditField}
+                    rows="3"
+                    maxLength={5000}
+                    placeholder="Optional exam notes"
+                  />
+                </div>
+              </div>
+
+              {error && (
+                <div className="exams-alert exams-alert-error" role="alert">
+                  <span>{error}</span>
+                </div>
+              )}
+
+              <div className="exams-form-actions">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={closeEditExam}
+                  disabled={saving}
+                >
+                  Cancel
+                </button>
+
+                <button type="submit" className="btn btn-primary" disabled={saving}>
+                  {saving ? 'Saving…' : 'Save changes'}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

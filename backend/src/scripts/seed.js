@@ -48,6 +48,7 @@ async function upsertUser(connection, user, passwordHash) {
         is_active = 1,
         is_verified = 1,
         deleted_at = NULL`,
+        department_id = VALUES(department_id),
     [user.username, user.email, passwordHash, user.fullName, user.role, user.departmentCode || null]
   );
 }

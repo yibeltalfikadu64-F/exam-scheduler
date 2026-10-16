@@ -14,8 +14,10 @@ import {
   Building2,
   BookMarked,
   AlertCircle,
+  Trash2,
 } from 'lucide-react';
 import api from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import './Programs.css';
 
 const DEGREE_TYPES = [
@@ -42,8 +44,14 @@ function getPayload(response) {
 }
 
 function getErrorMessage(error) {
+  if (Array.isArray(error?.details) && error.details.length) {
+    return error.details
+      .map((detail) => detail?.message || detail?.msg || String(detail))
+      .filter(Boolean)
+      .join(' ');
+  }
+
   return (
-    error?.response?.data?.message ||
     error?.message ||
     'Something went wrong. Please try again.'
   );
@@ -67,6 +75,9 @@ function StatCard({ icon: Icon, label, value }) {
 }
 
 export default function Programs() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+
   const [programs, setPrograms] = useState([]);
   const [departments, setDepartments] = useState([]);
 
@@ -293,6 +304,27 @@ export default function Programs() {
         `Program ${program.isActive ? 'deactivated' : 'activated'} successfully.`
       );
 
+      await loadPrograms();
+    } catch (err) {
+      setError(getErrorMessage(err));
+    }
+  };
+
+  const deleteProgram = async (program) => {
+    if (
+      !window.confirm(
+        `Delete program "${program.name}"? This cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    setError('');
+    setNotice('');
+
+    try {
+      await api.delete(`/programs/${program.id}`);
+      setNotice('Program deleted successfully.');
       await loadPrograms();
     } catch (err) {
       setError(getErrorMessage(err));
@@ -605,6 +637,18 @@ export default function Programs() {
                           >
                             <Power size={16} />
                           </button>
+
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              className="program-action-button program-action-delete"
+                              onClick={() => deleteProgram(program)}
+                              title="Delete program"
+                              aria-label={`Delete ${program.name}`}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

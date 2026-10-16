@@ -7,12 +7,14 @@ import {
   Plus,
   Pencil,
   Power,
+  Trash2,
   X,
 } from 'lucide-react';
 
 import courseService from '../services/courseService';
 import departmentService from '../services/departmentService';
 import programService from '../services/programService';
+import { useAuth } from '../context/AuthContext';
 import './Courses.css';
 
 const emptyForm = {
@@ -103,6 +105,9 @@ function getErrorMessage(error, fallback) {
 }
 
 export default function Courses() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+
   const [courses, setCourses] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [programs, setPrograms] = useState([]);
@@ -416,8 +421,31 @@ export default function Courses() {
 
       await loadCourses();
     } catch (err) {
-      console.error('Failed to change course status:', err);
       setError(getErrorMessage(err, `Could not ${action} the course.`));
+    }
+  }
+
+  // Permanently delete a course (admin only; refused while dependents exist).
+  async function deleteCourse(course) {
+    const label = course.code || course.name || `Course #${course.id}`;
+
+    if (
+      !window.confirm(
+        `Delete course "${label}"? This cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+
+    setError('');
+    setMessage('');
+
+    try {
+      await courseService.remove(course.id);
+      setMessage('Course deleted successfully.');
+      await loadCourses();
+    } catch (err) {
+      setError(getErrorMessage(err, 'Could not delete the course.'));
     }
   }
 
@@ -796,6 +824,18 @@ export default function Courses() {
                             <Power size={15} />
                             {isActive ? 'Deactivate' : 'Activate'}
                           </button>
+
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              className="btn btn-danger"
+                              onClick={() => deleteCourse(course)}
+                              aria-label={`Delete ${course.code}`}
+                            >
+                              <Trash2 size={15} />
+                              Delete
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

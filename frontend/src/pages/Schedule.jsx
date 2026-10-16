@@ -66,13 +66,19 @@ function unwrap(response) {
       !Array.isArray(result) &&
       result.data &&
       typeof result.data === 'object' &&
-      !Array.isArray(result.data) &&
-      !Array.isArray(result.items) &&
-      !Array.isArray(result.schedules) &&
-      !Array.isArray(result.details) &&
-      !Array.isArray(result.allocations) &&
-      !result.schedule
+      !Array.isArray(result.data)
     ) {
+      const hasKnownCollection =
+        Array.isArray(result.items) ||
+        Array.isArray(result.schedules) ||
+        Array.isArray(result.details) ||
+        Array.isArray(result.allocations) ||
+        Array.isArray(result.conflicts);
+
+      if (hasKnownCollection || result.schedule || result.id) {
+        break;
+      }
+
       result = result.data;
     } else {
       break;
@@ -97,14 +103,16 @@ function getErrorMessage(error) {
 
   const payload = error?.response?.data;
 
-  const validationMessages = (
-    payload?.details ??
-    payload?.errors ??
-    []
-  )
-    .map?.((item) => item?.message)
-    .filter(Boolean)
-    .join(' ');
+  const errors = payload?.details ?? payload?.errors ?? [];
+
+  const validationMessages = Array.isArray(errors)
+    ? errors
+        .map((item) =>
+          typeof item === 'string' ? item : item?.message,
+        )
+        .filter(Boolean)
+        .join(' ')
+    : '';
 
   return (
     validationMessages ||
@@ -112,6 +120,64 @@ function getErrorMessage(error) {
     error?.message ||
     'Something went wrong. Please try again.'
   );
+}
+
+function getScheduleList(response) {
+  if (Array.isArray(response)) return response;
+
+  if (Array.isArray(response?.items)) return response.items;
+  if (Array.isArray(response?.schedules)) return response.schedules;
+  if (Array.isArray(response?.data)) return response.data;
+
+  if (Array.isArray(response?.data?.items)) {
+    return response.data.items;
+  }
+
+  if (Array.isArray(response?.data?.schedules)) {
+    return response.data.schedules;
+  }
+
+  if (Array.isArray(response?.data?.data)) {
+    return response.data.data;
+  }
+
+  return [];
+}
+
+function getScheduleObject(response) {
+  return (
+    response?.schedule ??
+    response?.data?.schedule ??
+    response?.data?.data?.schedule ??
+    (response?.id ? response : null) ??
+    (response?.data?.id ? response.data : null)
+  );
+}
+
+function getScheduleDetails(response) {
+  const schedule = getScheduleObject(response);
+
+  const details =
+    response?.details ??
+    response?.data?.details ??
+    response?.data?.data?.details ??
+    schedule?.details ??
+    [];
+
+  return Array.isArray(details) ? details : [];
+}
+
+function getScheduleConflicts(response) {
+  const schedule = getScheduleObject(response);
+
+  const conflicts =
+    response?.conflicts ??
+    response?.data?.conflicts ??
+    response?.data?.data?.conflicts ??
+    schedule?.conflicts ??
+    [];
+
+  return Array.isArray(conflicts) ? conflicts : [];
 }
 
 function parseExamDate(dateValue, timeValue = '00:00:00') {
@@ -124,16 +190,13 @@ function parseExamDate(dateValue, timeValue = '00:00:00') {
 
   const parsed = parseISO(`${dateString}T00:00:00`);
 
-  if (Number.isNaN(parsed.getTime())) {
-    return null;
-  }
+  if (Number.isNaN(parsed.getTime())) return null;
 
-  const timeString = String(timeValue || '00:00:00');
-  const match = timeString.match(/^(\d{1,2}):(\d{2})/);
+  const match = String(timeValue || '00:00:00').match(
+    /^(\d{1,2}):(\d{2})/,
+  );
 
-  if (!match) {
-    return parsed;
-  }
+  if (!match) return parsed;
 
   const hours = Number(match[1]);
   const minutes = Number(match[2]);
@@ -185,69 +248,6 @@ function formatTime(value) {
   );
 }
 
-function eventTitle(detail) {
-  const course = detail?.course;
-  const exam = detail?.exam;
-
-  const courseLabel = course
-    ? `${course.code ? `${course.code} — ` : ''}${course.title || ''}`.trim()
-    : exam?.title ||
-      detail?.courseTitle ||
-      detail?.courseCode ||
-      'Scheduled examination';
-
-  return courseLabel || 'Scheduled examination';
-}
-
-function canEditSchedule(schedule) {
-  return ['draft', 'generated', 'reviewed'].includes(
-    schedule?.status,
-  );
-}
-
-function getScheduleList(response) {
-  if (Array.isArray(response)) return response;
-
-  if (Array.isArray(response?.items)) return response.items;
-  if (Array.isArray(response?.schedules)) return response.schedules;
-  if (Array.isArray(response?.data?.items)) return response.data.items;
-  if (Array.isArray(response?.data?.schedules)) {
-    return response.data.schedules;
-  }
-
-  return [];
-}
-
-function getScheduleDetails(response) {
-  const details =
-    response?.details ??
-    response?.schedule?.details ??
-    response?.data?.details ??
-    response?.data?.schedule?.details ??
-    [];
-
-  return Array.isArray(details) ? details : [];
-}
-
-function getScheduleConflicts(response) {
-  const conflicts =
-    response?.conflicts ??
-    response?.schedule?.conflicts ??
-    response?.data?.conflicts ??
-    response?.data?.schedule?.conflicts ??
-    [];
-
-  return Array.isArray(conflicts) ? conflicts : [];
-}
-
-function getScheduleObject(response) {
-  return (
-    response?.schedule ??
-    response?.data?.schedule ??
-    (response?.id ? response : null)
-  );
-}
-
 function getScheduleDate(detail) {
   return (
     detail?.examDate ??
@@ -255,6 +255,7 @@ function getScheduleDate(detail) {
     detail?.exam?.examDate ??
     detail?.exam?.date ??
     detail?.timeSlot?.examDate ??
+    detail?.timeSlot?.date ??
     null
   );
 }
@@ -276,6 +277,26 @@ function getEndTime(detail) {
     detail?.timeSlot?.end_time ??
     detail?.exam?.endTime ??
     null
+  );
+}
+
+function eventTitle(detail) {
+  const course = detail?.course;
+  const exam = detail?.exam;
+
+  const courseLabel = course
+    ? `${course.code ? `${course.code} — ` : ''}${course.title || ''}`.trim()
+    : exam?.title ||
+      detail?.courseTitle ||
+      detail?.courseCode ||
+      'Scheduled examination';
+
+  return courseLabel || 'Scheduled examination';
+}
+
+function canEditSchedule(schedule) {
+  return ['draft', 'generated', 'reviewed'].includes(
+    String(schedule?.status || '').toLowerCase(),
   );
 }
 
@@ -312,13 +333,16 @@ export default function Schedule() {
         params.status = statusFilter;
       }
 
-      const apiResponse = await api.get(
-        '/scheduling/schedules',
-        { params },
-      );
+      const apiResponse = await api.get('/scheduling/schedules', {
+        params,
+      });
 
       const response = unwrap(apiResponse);
       const result = getScheduleList(response);
+
+      if (!Array.isArray(result)) {
+        throw new Error('The server returned an invalid schedule list.');
+      }
 
       setSchedules(result);
 
@@ -335,9 +359,7 @@ export default function Schedule() {
 
         if (
           current &&
-          result.some(
-            (item) => String(item.id) === String(current),
-          )
+          result.some((item) => String(item.id) === String(current))
         ) {
           return current;
         }
@@ -345,22 +367,22 @@ export default function Schedule() {
         return result.length ? String(result[0].id) : '';
       });
 
-      if (result.length === 0) {
-        setScheduleData(null);
-      }
+      return result;
     } catch (err) {
       console.error('Loading schedules failed:', err);
-      setSchedules([]);
-      setSelectedId('');
-      setScheduleData(null);
+
+      // Keep previously loaded schedules if a refresh request fails.
       setError(getErrorMessage(err));
+      return null;
     } finally {
       setLoading(false);
     }
   }, [statusFilter, requestedScheduleId]);
 
-  const loadScheduleDetails = useCallback(async () => {
-    if (!selectedId) {
+  const loadScheduleDetails = useCallback(async (scheduleId) => {
+    const id = scheduleId ?? selectedId;
+
+    if (!id) {
       setScheduleData(null);
       setDetailLoading(false);
       return null;
@@ -371,7 +393,7 @@ export default function Schedule() {
 
     try {
       const apiResponse = await api.get(
-        `/scheduling/schedules/${encodeURIComponent(selectedId)}`,
+        `/scheduling/schedules/${encodeURIComponent(id)}`,
       );
 
       const response = unwrap(apiResponse);
@@ -380,8 +402,12 @@ export default function Schedule() {
       const details = getScheduleDetails(response);
       const conflicts = getScheduleConflicts(response);
 
+      // Some APIs return the schedule itself with embedded details.
       const nextData = {
-        schedule,
+        schedule:
+          schedule ||
+          schedules.find((item) => String(item.id) === String(id)) ||
+          null,
         details,
         conflicts,
       };
@@ -391,21 +417,24 @@ export default function Schedule() {
       return nextData;
     } catch (err) {
       console.error('Loading schedule details failed:', err);
-      setScheduleData(null);
       setError(getErrorMessage(err));
       return null;
     } finally {
       setDetailLoading(false);
     }
-  }, [selectedId]);
+  }, [selectedId, schedules]);
 
   useEffect(() => {
     loadSchedules();
   }, [loadSchedules]);
 
   useEffect(() => {
-    loadScheduleDetails();
-  }, [loadScheduleDetails]);
+    if (selectedId) {
+      loadScheduleDetails(selectedId);
+    } else {
+      setScheduleData(null);
+    }
+  }, [selectedId, loadScheduleDetails]);
 
   const selectedSchedule =
     scheduleData?.schedule ||
@@ -420,7 +449,10 @@ export default function Schedule() {
   const events = useMemo(
     () =>
       details
-        .filter((detail) => detail.status !== 'cancelled')
+        .filter(
+          (detail) =>
+            String(detail.status || '').toLowerCase() !== 'cancelled',
+        )
         .map((detail) => {
           const examDate = getScheduleDate(detail);
           const startTime = getStartTime(detail);
@@ -429,9 +461,7 @@ export default function Schedule() {
           const start = parseExamDate(examDate, startTime);
           const end = parseExamDate(examDate, endTime);
 
-          if (!start || !end || end <= start) {
-            return null;
-          }
+          if (!start || !end || end <= start) return null;
 
           return {
             id: detail.id,
@@ -445,7 +475,6 @@ export default function Schedule() {
     [details],
   );
 
-  // Navigate to the earliest exam whenever the selected timetable changes.
   useEffect(() => {
     if (!events.length) return;
 
@@ -456,9 +485,13 @@ export default function Schedule() {
     );
 
     setCalendarDate((currentDate) => {
+      // Keep the current calendar date if it already shows the
+      // selected schedule's earliest exam.
       if (
         currentDate &&
-        currentDate.getTime() === earliestExam.getTime()
+        currentDate.getFullYear() === earliestExam.getFullYear() &&
+        currentDate.getMonth() === earliestExam.getMonth() &&
+        currentDate.getDate() === earliestExam.getDate()
       ) {
         return currentDate;
       }
@@ -471,14 +504,33 @@ export default function Schedule() {
     setNotice('');
     setError('');
 
-    await loadSchedules();
+    const result = await loadSchedules();
 
-    // loadScheduleDetails uses the currently selected schedule ID.
-    await loadScheduleDetails();
+    if (result === null) return;
+
+    const id =
+      (requestedScheduleId &&
+      result.some(
+        (item) => String(item.id) === String(requestedScheduleId),
+      )
+        ? String(requestedScheduleId)
+        : result.some((item) => String(item.id) === String(selectedId))
+          ? String(selectedId)
+          : result.length
+            ? String(result[0].id)
+            : '');
+
+    if (id) {
+      await loadScheduleDetails(id);
+    } else {
+      setScheduleData(null);
+    }
   }
 
   async function runScheduleAction(action, label) {
     if (!selectedId) return;
+
+    const actionScheduleId = selectedId;
 
     setActionLoading(action);
     setError('');
@@ -486,30 +538,23 @@ export default function Schedule() {
 
     try {
       const apiResponse = await api.post(
-        `/scheduling/schedules/${encodeURIComponent(selectedId)}/${action}`,
+        `/scheduling/schedules/${encodeURIComponent(actionScheduleId)}/${action}`,
       );
 
       const response = unwrap(apiResponse);
 
       setNotice(response?.message || label);
 
-      // Reload the backend's schedule list and selected timetable.
+      // Reload the list and explicitly reload the same schedule ID.
+      // This avoids fetching details for an outdated selection.
       await loadSchedules();
-      await loadScheduleDetails();
+      await loadScheduleDetails(actionScheduleId);
     } catch (err) {
       console.error(`Schedule action ${action} failed:`, err);
       setError(getErrorMessage(err));
 
-      // Validation can save conflict records even when it fails.
-      // Reload details so the user can see the latest conflict state.
-      try {
-        await loadScheduleDetails();
-      } catch (refreshError) {
-        console.error(
-          'Refreshing schedule details failed:',
-          refreshError,
-        );
-      }
+      // Refresh details in case validation updated conflict records.
+      await loadScheduleDetails(actionScheduleId);
     } finally {
       setActionLoading('');
     }
@@ -526,19 +571,20 @@ export default function Schedule() {
     const section =
       detail.section?.sectionName ||
       detail.section?.section ||
+      detail.section?.name ||
       'Section not specified';
 
     setNotice(
       `${event.title} | ${format(event.start, 'PPP')} | ${formatTime(
         getStartTime(detail),
-      )}–${formatTime(
-        getEndTime(detail),
-      )} | ${room} | ${section}`,
+      )}–${formatTime(getEndTime(detail))} | ${room} | ${section}`,
     );
   }
 
   function eventStyle(event) {
-    const status = event.resource?.status;
+    const status = String(
+      event.resource?.status || '',
+    ).toLowerCase();
 
     const backgroundColor =
       status === 'cancelled'
@@ -628,13 +674,10 @@ export default function Schedule() {
             )}
 
             {schedules.map((schedule) => (
-              <option
-                key={schedule.id}
-                value={String(schedule.id)}
-              >
+              <option key={schedule.id} value={String(schedule.id)}>
                 {schedule.name || `Schedule #${schedule.id}`}
                 {' · '}
-                {schedule.status}
+                {schedule.status || 'unknown'}
                 {' · '}
                 {schedule.period?.name || 'Exam period'}
               </option>
@@ -647,32 +690,25 @@ export default function Schedule() {
 
           <select
             value={statusFilter}
-            onChange={(event) =>
-              setStatusFilter(event.target.value)
-            }
+            onChange={(event) => setStatusFilter(event.target.value)}
           >
             {STATUSES.map((status) => (
               <option key={status} value={status}>
                 {status === 'all'
                   ? 'All statuses'
-                  : status.charAt(0).toUpperCase() +
-                    status.slice(1)}
+                  : status.charAt(0).toUpperCase() + status.slice(1)}
               </option>
             ))}
           </select>
         </label>
 
         <div className="schedule-summary">
-          <span className="schedule-summary-label">
-            Exams scheduled
-          </span>
+          <span className="schedule-summary-label">Exams scheduled</span>
           <strong>{details.length}</strong>
         </div>
 
         <div className="schedule-summary">
-          <span className="schedule-summary-label">
-            Open conflicts
-          </span>
+          <span className="schedule-summary-label">Open conflicts</span>
           <strong className={hasConflicts ? 'schedule-danger' : ''}>
             {conflicts.length}
           </strong>
@@ -706,9 +742,11 @@ export default function Schedule() {
           </div>
 
           <span
-            className={`schedule-status-badge status-${selectedSchedule.status}`}
+            className={`schedule-status-badge status-${String(
+              selectedSchedule.status || 'unknown',
+            ).toLowerCase()}`}
           >
-            {selectedSchedule.status}
+            {selectedSchedule.status || 'unknown'}
           </span>
 
           {editable && (
@@ -718,16 +756,11 @@ export default function Schedule() {
                 type="button"
                 disabled={Boolean(actionLoading)}
                 onClick={() =>
-                  runScheduleAction(
-                    'validate',
-                    'Schedule validated.',
-                  )
+                  runScheduleAction('validate', 'Schedule validated.')
                 }
               >
                 <CheckCircle2 size={16} />
-                {actionLoading === 'validate'
-                  ? 'Validating…'
-                  : 'Validate'}
+                {actionLoading === 'validate' ? 'Validating…' : 'Validate'}
               </button>
 
               <button
@@ -751,10 +784,7 @@ export default function Schedule() {
                       'Publish this examination schedule? The server will revalidate it before publishing.',
                     )
                   ) {
-                    runScheduleAction(
-                      'publish',
-                      'Schedule published.',
-                    );
+                    runScheduleAction('publish', 'Schedule published.');
                   }
                 }}
               >
@@ -780,8 +810,8 @@ export default function Schedule() {
           <h2>No schedules found</h2>
           <p>
             There are no schedules for this filter yet. Create a
-            timetable using the scheduling workflow, then return
-            here to review it.
+            timetable using the scheduling workflow, then return here
+            to review it.
           </p>
         </div>
       )}
@@ -801,10 +831,10 @@ export default function Schedule() {
 
                 <ul>
                   {conflicts.slice(0, 5).map((conflict, index) => (
-                    <li key={conflict.id ?? `${conflict.type}-${index}`}>
-                      {conflict.title
-                        ? `${conflict.title}: `
-                        : ''}
+                    <li
+                      key={conflict.id ?? `${conflict.type}-${index}`}
+                    >
+                      {conflict.title ? `${conflict.title}: ` : ''}
                       {conflict.description ||
                         conflict.message ||
                         conflict.type ||
@@ -833,9 +863,7 @@ export default function Schedule() {
                   <button
                     key={view}
                     type="button"
-                    className={
-                      calendarView === view ? 'active' : ''
-                    }
+                    className={calendarView === view ? 'active' : ''}
                     onClick={() => setCalendarView(view)}
                   >
                     {view.charAt(0).toUpperCase() + view.slice(1)}
@@ -881,9 +909,7 @@ export default function Schedule() {
             <div className="schedule-calendar-heading">
               <div>
                 <h2>Scheduled exams</h2>
-                <p>
-                  Exam assignments retrieved from the backend.
-                </p>
+                <p>Exam assignments retrieved from the backend.</p>
               </div>
 
               <span className="schedule-count">

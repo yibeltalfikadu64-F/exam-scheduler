@@ -108,9 +108,6 @@ export default function GenerateSchedule() {
 
             const payload = unwrapResponse(response);
 
-            // Keep this log while troubleshooting the preview response.
-            console.log('Schedule preview response:', payload);
-
             const allocations =
                 payload?.allocations ??
                 payload?.schedule?.allocations ??
@@ -231,8 +228,6 @@ export default function GenerateSchedule() {
             );
 
             const payload = unwrapResponse(apiResponse);
-
-            console.log('Saved schedule response:', payload);
 
             const savedSchedule =
                 payload?.schedule ??

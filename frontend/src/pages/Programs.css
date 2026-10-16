@@ -631,6 +631,16 @@
     border-color: color-mix(in srgb, var(--program-success) 40%, transparent);
 }
 
+.program-action-delete {
+    color: #b91c1c;
+}
+
+.program-action-delete:hover {
+    color: #ffffff;
+    background: #dc2626;
+    border-color: #dc2626;
+}
+
 /* =========================================
    LOADING & EMPTY STATES
 ========================================= */

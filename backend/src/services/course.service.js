@@ -584,13 +584,83 @@ async function replacePrerequisites(courseId, ids, actor, meta = {}) {
   return getPublicById(courseId);
 }
 
+/** Dependency counts used before deleting / deactivating a course. */
+async function getCourseDependencies(id) {
+  const [[sectionRows], [examRows], [enrollmentRows], [prereqRows]] = await Promise.all([
+    database.getPool().query('SELECT COUNT(*) AS total FROM sections WHERE course_id = ?', [id]),
+    database.getPool().query('SELECT COUNT(*) AS total FROM exams WHERE course_id = ?', [id]),
+    database.getPool().query(
+      'SELECT COUNT(*) AS total FROM enrollments e JOIN sections s ON s.id = e.section_id WHERE s.course_id = ?',
+      [id]
+    ),
+    database.getPool().query(
+      'SELECT COUNT(*) AS total FROM course_prerequisites WHERE course_id = ? OR prerequisite_course_id = ?',
+      [id, id]
+    ),
+  ]);
+  const counts = {
+    sections: Number(sectionRows[0].total),
+    exams: Number(examRows[0].total),
+    enrollments: Number(enrollmentRows[0].total),
+    prerequisites: Number(prereqRows[0].total),
+  };
+  // Prerequisites are cascaded safely; sections/exams/enrollments are not.
+  return {
+    ...counts,
+    canDelete: counts.sections === 0 && counts.exams === 0 && counts.enrollments === 0,
+  };
+}
+
+/**
+ * Hard-delete a course only when it is not referenced by sections, exams or
+ * enrollments. Deleting otherwise would cascade-delete sections (and their
+ * enrollments) and exams, so the operation is refused.
+ */
+async function deleteCourse(id, actor, meta) {
+  const before = await requireCourse(id);
+  const dependencies = await getCourseDependencies(id);
+
+  if (!dependencies.canDelete) {
+    throw ApiError.conflict('This course cannot be deleted because records depend on it.', {
+      code: 'COURSE_IN_USE',
+      details: [
+        { field: 'sections', message: `${dependencies.sections} section(s) reference this course.` },
+        { field: 'exams', message: `${dependencies.exams} exam(s) reference this course.` },
+        { field: 'enrollments', message: `${dependencies.enrollments} enrollment(s) reference sections of this course.` },
+      ],
+    });
+  }
+
+  try {
+    await database.getPool().query('DELETE FROM courses WHERE id = ?', [id]);
+  } catch (error) {
+    if (error && (error.code === 'ER_ROW_IS_REFERENCED_2' || error.code === 'ER_ROW_IS_REFERENCED')) {
+      throw ApiError.conflict('This course is still referenced by other records.', { code: 'COURSE_IN_USE' });
+    }
+    throw error;
+  }
+
+  await auditService.record({
+    userId: actor.id,
+    action: 'course.delete',
+    entityType: 'course',
+    entityId: id,
+    before: { code: before.code, title: before.title },
+    ipAddress: meta.ip,
+    userAgent: meta.userAgent,
+  });
+  return { id, deleted: true };
+}
+
 module.exports = {
   listCourses,
   listOptions,
   getPublicById,
   getPrerequisites,
+  getCourseDependencies,
   createCourse,
   updateCourse,
   setCourseStatus,
   replacePrerequisites,
+  deleteCourse,
 };

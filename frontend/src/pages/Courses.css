@@ -160,6 +160,19 @@
     transform: translateY(-1px);
 }
 
+.courses-page .btn-danger {
+    color: #b91c1c;
+    background: #fef2f2;
+    border-color: #fecaca;
+}
+
+.courses-page .btn-danger:hover:not(:disabled) {
+    color: #ffffff;
+    background: #dc2626;
+    border-color: #dc2626;
+    transform: translateY(-1px);
+}
+
 .courses-page .btn svg {
     width: 16px;
     height: 16px;

@@ -25,7 +25,7 @@ const router = express.Router();
 router.use(authenticate);
 
 const CAN_READ = ['admin', 'registrar', 'department_head'];
-const CAN_MANAGE = ['admin', 'registrar', 'department_head'];
+const CAN_MANAGE = ['admin'];
 
 /** Permit an instructor to manage their own availability (and nothing else). */
 function allowOwnAvailability(req, res, next) {
@@ -50,8 +50,19 @@ router.get('/:id', authorize(CAN_READ), invigilatorController.getOne);
 router.post('/', authorize(CAN_MANAGE), validate(validateCreateInvigilator), invigilatorController.create);
 router.patch('/:id', authorize(CAN_MANAGE), validate(validateUpdateInvigilator), invigilatorController.update);
 router.patch('/:id/status', authorize(CAN_MANAGE), validate(validateStatusToggle), invigilatorController.setStatus);
-router.get('/:id/availability', authorize(CAN_READ), allowOwnAvailability, invigilatorController.listAvailability);
-router.put('/:id/availability', authorize(CAN_MANAGE), allowOwnAvailability, validate(validateAvailability), invigilatorController.replaceAvailability);
+router.get(
+  '/:id/availability',
+  authorize(['admin', 'registrar', 'department_head', 'instructor']),
+  allowOwnAvailability,
+  invigilatorController.listAvailability
+);
+router.put(
+  '/:id/availability',
+  authorize(['admin', 'instructor']),
+  allowOwnAvailability,
+  validate(validateAvailability),
+  invigilatorController.replaceAvailability
+);
 router.delete('/:id', authorize(CAN_MANAGE), invigilatorController.remove);
 
 module.exports = router;

@@ -17,8 +17,10 @@ import {
   LoaderCircle,
   CheckCircle2,
   AlertCircle,
+  Trash2,
 } from 'lucide-react';
 import api from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import './Departments.css';
 
 const PAGE_SIZE = 10;
@@ -433,6 +435,9 @@ function DeactivationModal({
 }
 
 export default function Departments() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+
   const [departments, setDepartments] = useState([]);
   const [pagination, setPagination] = useState({
     page: 1,
@@ -629,6 +634,26 @@ export default function Departments() {
         isActive: true,
       });
       setSuccessMessage('Department reactivated successfully.');
+      await loadDepartments({ silent: true });
+    } catch (error) {
+      setPageError(getErrorMessage(error));
+    }
+  }
+
+  async function deleteDepartment(department) {
+    if (
+      !window.confirm(
+        `Delete department "${department.name}"? This cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+
+    setPageError('');
+
+    try {
+      await api.delete(`/departments/${department.id}`);
+      setSuccessMessage('Department deleted successfully.');
       await loadDepartments({ silent: true });
     } catch (error) {
       setPageError(getErrorMessage(error));
@@ -951,6 +976,18 @@ export default function Departments() {
                                 aria-label={`Reactivate ${department.name}`}
                               >
                                 <RefreshCw size={16} />
+                              </button>
+                            )}
+
+                            {isAdmin && (
+                              <button
+                                type="button"
+                                className="department-action-button department-action-delete"
+                                onClick={() => deleteDepartment(department)}
+                                title="Delete department"
+                                aria-label={`Delete ${department.name}`}
+                              >
+                                <Trash2 size={16} />
                               </button>
                             )}
                           </div>

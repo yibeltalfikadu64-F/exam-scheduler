@@ -8,6 +8,7 @@ import {
   Search,
   RefreshCw,
   Pencil,
+  Trash2,
   CheckCircle2,
   XCircle,
   AlertCircle,
@@ -16,6 +17,7 @@ import {
   Clock,
 } from 'lucide-react';
 import api from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import instructorService from '../services/instructorService';
 import invigilatorService from '../services/invigilatorService';
 import invigilationService from '../services/invigilationService';
@@ -126,6 +128,9 @@ export default function Instructors() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY_INSTRUCTOR);
+
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
 
   const isInstructorTab = tab === 'instructors';
 
@@ -363,6 +368,29 @@ export default function Instructors() {
     }
   }
 
+  async function deleteRecord(record) {
+    const label = record.user?.fullName || record.staffIdentifier || record.staffNumber || 'this record';
+
+    if (!window.confirm(`Delete ${label}? This cannot be undone.`)) {
+      return;
+    }
+
+    setNotice(null);
+
+    try {
+      if (isInstructorTab) {
+        await instructorService.remove(record.id);
+      } else {
+        await invigilatorService.remove(record.id);
+      }
+
+      setNotice({ type: 'success', text: 'Record deleted successfully.' });
+      await loadDirectory();
+    } catch (error) {
+      setNotice({ type: 'error', text: getError(error) });
+    }
+  }
+
   function submitSearch(event) {
     event.preventDefault();
     setSearch(searchInput.trim());
@@ -581,6 +609,17 @@ export default function Instructors() {
                             ? <CheckCircle2 size={16} />
                             : <XCircle size={16} />}
                         </button>
+                        {isAdmin ? (
+                          <button
+                            className="btn btn-icon instructors-delete"
+                            type="button"
+                            title="Delete record"
+                            aria-label={`Delete ${record.user?.fullName || 'staff record'}`}
+                            onClick={() => deleteRecord(record)}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        ) : null}
                       </div>
                     </td>
                   </tr>

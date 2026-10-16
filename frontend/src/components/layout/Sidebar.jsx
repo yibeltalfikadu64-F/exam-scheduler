@@ -231,7 +231,7 @@ export default function Sidebar({ open = false }) {
         <div>Version 1.0.0</div>
 
         <div style={{ opacity: 0.7 }}>
-          All modules navigable · CRUD in progress
+          All modules navigable · live data
         </div>
       </div>
     </aside>

@@ -229,6 +229,14 @@ const replacePrerequisites = asyncHandler(async (req, res) => {
   );
 });
 
+const remove = asyncHandler(async (req, res) =>
+  ApiResponse.success(
+    res,
+    await courseService.deleteCourse(parseId(req.params.id), req.user, requestMeta(req)),
+    'Course deleted successfully.'
+  )
+);
+
 module.exports = {
   list,
   options,
@@ -238,4 +246,5 @@ module.exports = {
   setStatus,
   getPrerequisites,
   replacePrerequisites,
+  remove,
 };

@@ -42,6 +42,12 @@ const departmentService = {
     api.get(`/departments/${id}/dependencies`),
 
   /**
+   * Get department-scoped statistics (real database counts).
+   */
+  stats: (id) =>
+    api.get(`/departments/${id}/stats`),
+
+  /**
    * Create a department.
    */
   create: (payload) =>

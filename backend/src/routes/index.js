@@ -1,8 +1,7 @@
-
-'use strict';
+﻿'use strict';
 
 /**
- * API v1 router. Feature routers are mounted here as phases are completed.
+ * API v1 router.
  */
 
 const express = require('express');
@@ -75,6 +74,7 @@ router.get('/', (req, res) => {
   });
 });
 
+// Register API routes
 router.use('/health', healthRoutes);
 router.use('/auth', authRoutes);
 router.use('/dashboard', dashboardRoutes);

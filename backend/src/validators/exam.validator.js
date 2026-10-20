@@ -157,12 +157,15 @@ function buildExamValue(payload, errors, partial) {
     value.semesterId = readId('semesterId');
   }
 
+  // On create, default the exam type to 'final'. On a partial update, an
+  // omitted examType must be left untouched (not silently reset to 'final').
   const examType = parseEnum(
     payload.examType,
     EXAM_TYPE_VALUES,
     'examType',
     errors,
-    'final'
+    partial ? undefined : 'final',
+    { optional: partial }
   );
 
   if (examType !== undefined) {

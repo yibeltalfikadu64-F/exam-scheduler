@@ -10,7 +10,8 @@ import { toggleCollapsed, toggleSidebar } from '../../store/slices/uiSlice';
 const PAGE_TITLES = {
   '/': { title: 'Dashboard', subtitle: 'Exam schedule overview' },
   '/departments': { title: 'Departments & Programs', subtitle: 'Faculties, departments and programs' },
-  '/courses': { title: 'Courses & Sections', subtitle: 'Course catalogue and sections' },
+  '/courses': { title: 'Courses', subtitle: 'Course catalogue and prerequisites' },
+  '/sections': { title: 'Sections', subtitle: 'Course delivery groups and capacity' },
   '/students': { title: 'Students & Enrollments', subtitle: 'Student records and enrolments' },
   '/instructors': { title: 'Instructors & Duties', subtitle: 'Teaching staff and invigilation' },
   '/rooms': { title: 'Buildings & Rooms', subtitle: 'Facilities and capacity' },
@@ -44,7 +45,14 @@ export default function Topbar() {
   const { user, logout } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
 
-  const heading = PAGE_TITLES[location.pathname] || { title: 'Exam Scheduler', subtitle: 'University administration' };
+  const heading =
+    PAGE_TITLES[location.pathname] ||
+    (location.pathname.startsWith('/departments/')
+      ? {
+          title: 'Department Details',
+          subtitle: 'Programs, courses and records for this department',
+        }
+      : { title: 'Exam Scheduler', subtitle: 'University administration' });
 
   const handleSignOut = async () => {
     setSigningOut(true);

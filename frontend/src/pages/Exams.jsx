@@ -20,7 +20,7 @@ const EXAM_TYPE_LABELS = {
   quiz: 'Quiz',
   practical: 'Practical Exam',
   supplementary: 'Supplementary Exam',
-  other: 'Exam',
+  other: 'Other Exam',
 };
 
 const EXAM_STATUS_VALUES = [
@@ -31,10 +31,33 @@ const EXAM_STATUS_VALUES = [
   'completed',
 ];
 
+// Backend-supported enumerations (mirrors exam.validator.js / the exams table).
+// These are fallbacks; the live lists come from GET /exams/options.
+const EXAM_TYPE_VALUES = [
+  'midterm',
+  'final',
+  'supplementary',
+  'quiz',
+  'practical',
+  'other',
+];
+
+const ROOM_TYPE_VALUES = ['lecture', 'lab', 'hall', 'seminar', 'other'];
+
+const ROOM_TYPE_LABELS = {
+  lecture: 'Lecture Room',
+  lab: 'Laboratory',
+  hall: 'Examination Hall',
+  seminar: 'Seminar Room',
+  other: 'Other',
+};
+
+// Exam list page size (backend default is 10; max 100).
+const PAGE_SIZE = 10;
+
 const initialForm = {
   courseId: '',
   sectionId: '',
-  roomId: '',
   examPeriodId: '',
   academicYearId: '',
   semesterId: '',
@@ -156,42 +179,6 @@ function getSectionLabel(section) {
   if (year !== '') labelParts.push(`Year ${year}`);
 
   return labelParts.join(' — ');
-}
-
-function getRoomLabel(room) {
-  const number =
-    room?.room_number ??
-    room?.roomNumber ??
-    room?.number ??
-    '';
-
-  const name =
-    room?.room_name ??
-    room?.roomName ??
-    room?.name ??
-    '';
-
-  const building =
-    room?.building_name ??
-    room?.buildingName ??
-    room?.building?.name ??
-    (typeof room?.building === 'string' ? room.building : '');
-
-  const roomLabel = [building, number || name]
-    .filter(Boolean)
-    .join(' — ');
-
-  const capacity =
-    room?.capacity ??
-    room?.room_capacity ??
-    room?.roomCapacity;
-
-  return [
-    roomLabel || `Room ${getId(room)}`,
-    capacity != null ? `Capacity: ${capacity}` : '',
-  ]
-    .filter(Boolean)
-    .join(' | ');
 }
 
 function getAcademicYearLabel(year) {
@@ -318,18 +305,25 @@ function getExamAcademicYearLabel(exam) {
 export default function Exams() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
-  const canWrite = ['admin', 'registrar', 'department_head'].includes(user?.role);
+  // Exam writes are admin-only. This mirrors the backend authorization policy
+  // (exam.routes.js: CAN_WRITE = ['admin']), so the UI never offers an action
+  // the API would reject with 403.
+  const canWrite = isAdmin;
 
   const [courses, setCourses] = useState([]);
   const [sections, setSections] = useState([]);
-  const [rooms, setRooms] = useState([]);
   const [exams, setExams] = useState([]);
   const [academicYears, setAcademicYears] = useState([]);
   const [semesters, setSemesters] = useState([]);
   const [examPeriods, setExamPeriods] = useState([]);
+  const [examOptions, setExamOptions] = useState(null);
 
   const [form, setForm] = useState(initialForm);
   const [search, setSearch] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [showForm, setShowForm] = useState(false);
 
   const [editingExam, setEditingExam] = useState(null);
@@ -339,16 +333,28 @@ export default function Exams() {
   const [loading, setLoading] = useState(true);
   const [coursesLoading, setCoursesLoading] = useState(false);
   const [sectionsLoading, setSectionsLoading] = useState(false);
-  const [roomsLoading, setRoomsLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
   const loadExams = useCallback(async () => {
-    const response = await api.get('/exams');
+    const params = {
+      page,
+      limit: PAGE_SIZE,
+      sort: 'created_at',
+      order: 'desc',
+    };
+
+    if (appliedSearch) {
+      params.search = appliedSearch;
+    }
+
+    const response = await api.get('/exams', { params });
+
     setExams(getItems(response, ['exams']));
-  }, []);
+    setPagination(response?.data?.pagination ?? null);
+  }, [page, appliedSearch]);
 
   const loadCourses = useCallback(async () => {
     setCoursesLoading(true);
@@ -370,12 +376,18 @@ export default function Exams() {
     }
   }, []);
 
-  const loadSections = useCallback(async () => {
+  const loadSections = useCallback(async (courseId) => {
+    if (!courseId) {
+      setSections([]);
+      return;
+    }
+
     setSectionsLoading(true);
 
     try {
       const response = await api.get('/sections', {
         params: {
+          courseId,
           limit: 100,
           isActive: true,
           order: 'asc',
@@ -401,14 +413,15 @@ export default function Exams() {
     }
   }, []);
 
-  const loadRooms = useCallback(async () => {
-    setRoomsLoading(true);
+  const loadExamOptions = useCallback(async () => {
+    const response = await api.get('/exams/options');
+    const options = response?.data ?? response;
 
-    try {
-      const response = await api.get('/rooms');
-      setRooms(getItems(response, ['rooms']));
-    } finally {
-      setRoomsLoading(false);
+    if (options && typeof options === 'object') {
+      setExamOptions({
+        examTypes: Array.isArray(options.examTypes) ? options.examTypes : null,
+        roomTypes: Array.isArray(options.roomTypes) ? options.roomTypes : null,
+      });
     }
   }, []);
 
@@ -472,40 +485,79 @@ export default function Exams() {
     setSemesters(uniqueSemesters);
   }, []);
 
-  const refresh = useCallback(async () => {
-    setLoading(true);
+  const loadReferenceData = useCallback(async () => {
     setError('');
 
-    try {
-      const results = await Promise.allSettled([
-        loadExams(),
-        loadCourses(),
-        loadSections(),
-        loadRooms(),
-        loadAcademicDetails(),
-      ]);
+    const results = await Promise.allSettled([
+      loadCourses(),
+      loadExamOptions(),
+      loadAcademicDetails(),
+    ]);
 
-      const failed = results.find(
-        (result) => result.status === 'rejected'
-      );
+    const failed = results.find((result) => result.status === 'rejected');
 
-      if (failed) {
-        setError(getErrorMessage(failed.reason));
-      }
-    } finally {
-      setLoading(false);
+    if (failed) {
+      setError(getErrorMessage(failed.reason));
     }
-  }, [
-    loadExams,
-    loadCourses,
-    loadSections,
-    loadRooms,
-    loadAcademicDetails,
-  ]);
+  }, [loadCourses, loadExamOptions, loadAcademicDetails]);
 
+  // Reference data (courses, options, calendar) loads once on mount.
   useEffect(() => {
-    refresh();
-  }, [refresh]);
+    loadReferenceData();
+  }, [loadReferenceData]);
+
+  // The exam list reloads whenever the server-side page or applied search
+  // changes, or when the user explicitly refreshes.
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+
+    loadExams()
+      .catch((err) => {
+        if (active) setError(getErrorMessage(err));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [loadExams, reloadKey]);
+
+  // Debounce the search box into a server-side search term.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setAppliedSearch(search.trim());
+      setPage(1);
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Load only the sections that belong to the selected course.
+  useEffect(() => {
+    if (!form.courseId) {
+      setSections([]);
+      return undefined;
+    }
+
+    let active = true;
+
+    loadSections(form.courseId).catch((err) => {
+      if (active) setError(getErrorMessage(err));
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [form.courseId, loadSections]);
+
+  function handleRefresh() {
+    setError('');
+    loadReferenceData();
+    setReloadKey((key) => key + 1);
+  }
 
   const availableSemesters = useMemo(() => {
     if (!form.academicYearId) return [];
@@ -524,27 +576,21 @@ export default function Exams() {
     });
   }, [semesters, form.academicYearId]);
 
-  const filteredExams = useMemo(() => {
-    const term = search.trim().toLowerCase();
+  const examTypeValues = useMemo(
+    () =>
+      examOptions?.examTypes?.length
+        ? examOptions.examTypes
+        : EXAM_TYPE_VALUES,
+    [examOptions]
+  );
 
-    if (!term) return exams;
-
-    return exams.filter((exam) => {
-      const searchable = [
-        exam.title,
-        getExamType(exam),
-        exam.status,
-        getExamCourseLabel(exam),
-        getExamAcademicYearLabel(exam),
-        getExamSemesterLabel(exam),
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-
-      return searchable.includes(term);
-    });
-  }, [exams, search]);
+  const roomTypeValues = useMemo(
+    () =>
+      examOptions?.roomTypes?.length
+        ? examOptions.roomTypes
+        : ROOM_TYPE_VALUES,
+    [examOptions]
+  );
 
   function updateField(event) {
     const { name, value } = event.target;
@@ -554,6 +600,11 @@ export default function Exams() {
 
       if (name === 'academicYearId') {
         next.semesterId = '';
+      }
+
+      // A section belongs to exactly one course; drop an incompatible choice.
+      if (name === 'courseId') {
+        next.sectionId = '';
       }
 
       return next;
@@ -644,16 +695,9 @@ export default function Exams() {
 
     const courseTitle = getCourseLabel(selectedCourse);
 
-    const examTypeLabels = {
-      midterm: 'Midterm Exam',
-      final: 'Final Exam',
-      quiz: 'Quiz',
-      practical: 'Practical Exam',
-      supplementary: 'Supplementary Exam',
-    };
-
-    const title = `${courseTitle} — ${examTypeLabels[form.examType] ?? 'Exam'
-      }`;
+    const title = `${courseTitle} — ${
+      EXAM_TYPE_LABELS[form.examType] ?? 'Exam'
+    }`;
 
     const payload = {
       title,
@@ -671,9 +715,6 @@ export default function Exams() {
     if (form.examPeriodId) {
       payload.examPeriodId = Number(form.examPeriodId);
     }
-
-    // Room selection remains for planning. The backend currently
-    // handles final room assignment in the scheduling module.
 
     setSaving(true);
 
@@ -828,21 +869,23 @@ export default function Exams() {
           <button
             type="button"
             className="btn btn-secondary"
-            onClick={refresh}
+            onClick={handleRefresh}
             disabled={loading}
           >
             <RefreshCw size={16} />
             Refresh
           </button>
 
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={openCreateForm}
-          >
-            <Plus size={16} />
-            Create Exam
-          </button>
+          {canWrite && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={openCreateForm}
+            >
+              <Plus size={16} />
+              Create Exam
+            </button>
+          )}
         </div>
       </div>
 
@@ -951,33 +994,6 @@ export default function Exams() {
               </div>
 
               <div className="form-group">
-                <label htmlFor="roomId">Room</label>
-                <select
-                  id="roomId"
-                  name="roomId"
-                  value={form.roomId}
-                  onChange={updateField}
-                >
-                  <option value="">Select a room (optional)</option>
-                  {rooms.map((room) => (
-                    <option key={getId(room)} value={getId(room)}>
-                      {getRoomLabel(room)}
-                    </option>
-                  ))}
-                </select>
-
-                {roomsLoading && <small>Loading rooms…</small>}
-
-                {!roomsLoading && rooms.length === 0 && (
-                  <small>No rooms available.</small>
-                )}
-
-                <small>
-                  Final room assignment is handled by the scheduling module.
-                </small>
-              </div>
-
-              <div className="form-group">
                 <label htmlFor="academicYearId">Academic Year *</label>
                 <select
                   id="academicYearId"
@@ -1047,11 +1063,11 @@ export default function Exams() {
                   onChange={updateField}
                   required
                 >
-                  <option value="midterm">Midterm</option>
-                  <option value="final">Final</option>
-                  <option value="quiz">Quiz</option>
-                  <option value="practical">Practical</option>
-                  <option value="supplementary">Supplementary</option>
+                  {examTypeValues.map((value) => (
+                    <option key={value} value={value}>
+                      {EXAM_TYPE_LABELS[value] ?? value}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -1077,11 +1093,11 @@ export default function Exams() {
                   value={form.requiredRoomType}
                   onChange={updateField}
                 >
-                  <option value="lecture">Lecture Room</option>
-                  <option value="laboratory">Laboratory</option>
-                  <option value="computer_lab">Computer Lab</option>
-                  <option value="hall">Examination Hall</option>
-                  <option value="any">Any Room</option>
+                  {roomTypeValues.map((value) => (
+                    <option key={value} value={value}>
+                      {ROOM_TYPE_LABELS[value] ?? value}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -1152,7 +1168,7 @@ export default function Exams() {
 
         {loading ? (
           <p className="exams-empty">Loading exams…</p>
-        ) : filteredExams.length === 0 ? (
+        ) : exams.length === 0 ? (
           <p className="exams-empty">No exams found.</p>
         ) : (
           <div className="exams-table-wrapper">
@@ -1319,12 +1335,11 @@ export default function Exams() {
                     onChange={updateEditField}
                     required
                   >
-                    <option value="midterm">Midterm Exam</option>
-                    <option value="final">Final Exam</option>
-                    <option value="quiz">Quiz</option>
-                    <option value="practical">Practical Exam</option>
-                    <option value="supplementary">Supplementary Exam</option>
-                    <option value="other">Other</option>
+                    {examTypeValues.map((value) => (
+                      <option key={value} value={value}>
+                        {EXAM_TYPE_LABELS[value] ?? value}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -1351,12 +1366,11 @@ export default function Exams() {
                     value={editForm.requiredRoomType}
                     onChange={updateEditField}
                   >
-                    <option value="lecture">Lecture Room</option>
-                    <option value="lab">Laboratory</option>
-                    <option value="computer_lab">Computer Lab</option>
-                    <option value="hall">Examination Hall</option>
-                    <option value="seminar">Seminar Room</option>
-                    <option value="other">Other</option>
+                    {roomTypeValues.map((value) => (
+                      <option key={value} value={value}>
+                        {ROOM_TYPE_LABELS[value] ?? value}
+                      </option>
+                    ))}
                   </select>
                 </div>
 

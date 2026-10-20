@@ -1229,3 +1229,13 @@ body.dark .settings-page,
         transition-duration: 0.01ms !important;
     }
 }
+/* System Reset Panel */
+.settings-danger-card { border-color: rgba(239, 68, 68, 0.6); background: linear-gradient(180deg, rgba(239,68,68,0.08) 0%, rgba(24,24,27,0.02) 100%); }
+.settings-danger-card .settings-card-icon { background: rgba(239, 68, 68, 0.16); color: rgb(239, 68, 68); }
+.settings-input-danger { border-color: rgba(239, 68, 68, 0.7); }
+.settings-button-danger { background: linear-gradient(135deg, rgb(239,68,68) 0%, rgb(220,38,38) 100%); color: white; border: none; }
+.settings-button-danger:disabled { opacity: 0.5; cursor: not-allowed; }
+.settings-reset-counts { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin: 12px 0; }
+.settings-reset-count { background: rgba(0,0,0,0.02); padding: 8px 10px; border-radius: 6px; border: 1px solid rgba(0,0,0,0.05); }
+.settings-reset-count-label { display: block; font-size: 10px; opacity: 0.7; }
+.settings-reset-count-value { display: block; font-size: 14px; font-weight: 600; }

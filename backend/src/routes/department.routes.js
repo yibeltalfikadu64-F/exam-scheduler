@@ -102,6 +102,16 @@ router.get(
 );
 
 /**
+ * GET /api/v1/departments/:id/stats
+ * Department-scoped statistics for the department detail page.
+ */
+router.get(
+    '/:id/stats',
+    authorize(CAN_READ),
+    departmentController.stats
+);
+
+/**
  * GET /api/v1/departments/:id
  * Retrieve a department by ID.
  */

@@ -7,8 +7,10 @@ import RoleRoute from './RoleRoute';
 
 import Dashboard from '../pages/Dashboard';
 import Departments from '../pages/Departments';
+import DepartmentDetails from '../pages/DepartmentDetails';
 import Programs from '../pages/Programs';
 import Courses from '../pages/Courses';
+import Sections from '../pages/Sections';
 import Exams from '../pages/Exams';
 import Students from '../pages/Students';
 import Instructors from '../pages/Instructors';
@@ -53,6 +55,11 @@ export default function AppRoutes() {
         />
 
         <Route
+          path="/departments/:departmentId"
+          element={<DepartmentDetails />}
+        />
+
+        <Route
           path="/programs"
           element={<Programs />}
         />
@@ -60,6 +67,11 @@ export default function AppRoutes() {
         <Route
           path="/courses"
           element={<Courses />}
+        />
+
+        <Route
+          path="/sections"
+          element={<Sections />}
         />
 
         <Route

@@ -14,3 +14,16 @@ const settingsService = {
 };
 
 export default settingsService;
+
+export async function getResetPreview() {
+  const response = await api.get('/settings/reset/preview');
+  const payload = response?.data ?? response;
+  return payload?.data ?? payload;
+}
+
+export async function executeSystemReset(confirm) {
+  const response = await api.post('/settings/reset/execute', { confirm });
+  const payload = response?.data ?? response;
+  return payload?.data ?? payload;
+}
+

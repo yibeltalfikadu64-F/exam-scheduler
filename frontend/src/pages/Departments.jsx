@@ -1,5 +1,6 @@
 
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Building2,
   Search,
@@ -18,6 +19,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Trash2,
+  Eye,
 } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -891,9 +893,13 @@ export default function Departments() {
                             <span className="department-row-icon">
                               <Building2 size={17} />
                             </span>
-                            <span className="department-name">
+                            <Link
+                              className="department-name department-name-link"
+                              to={`/departments/${department.id}`}
+                              title={`View ${department.name}`}
+                            >
                               {department.name}
-                            </span>
+                            </Link>
                           </div>
                         </td>
 
@@ -947,6 +953,15 @@ export default function Departments() {
 
                         <td>
                           <div className="department-actions">
+                            <Link
+                              className="department-action-button"
+                              to={`/departments/${department.id}`}
+                              title="View department details"
+                              aria-label={`View details for ${department.name}`}
+                            >
+                              <Eye size={16} />
+                            </Link>
+
                             <button
                               type="button"
                               className="department-action-button"

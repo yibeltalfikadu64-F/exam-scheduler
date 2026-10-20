@@ -303,6 +303,136 @@ async function getDependencies(id) {
 }
 
 /**
+ * Department-scoped statistics for the department detail page.
+ *
+ * Every number is a live COUNT(*) over real rows filtered to this department
+ * (sections/courses/exams reach the department through their course link;
+ * students reach it through their program). Shared university facilities
+ * (rooms/buildings) are returned separately because they are not owned by a
+ * department. Counts are never estimated or hard-coded.
+ */
+async function getStats(id) {
+  await requireDepartment(id);
+
+  const pool = database.getPool();
+
+  const [
+    [programRows],
+    [courseRows],
+    [activeCourseRows],
+    [sectionRows],
+    [studentRows],
+    [instructorRows],
+    [invigilatorRows],
+    [examRows],
+    [scheduledRows],
+    [unscheduledRows],
+    [scheduleRows],
+    [conflictRows],
+    [roomRows],
+    [buildingRows],
+  ] = await Promise.all([
+    pool.query('SELECT COUNT(*) AS total FROM programs WHERE department_id = ?', [id]),
+    pool.query('SELECT COUNT(*) AS total FROM courses WHERE department_id = ?', [id]),
+    pool.query('SELECT COUNT(*) AS total FROM courses WHERE department_id = ? AND is_active = 1', [id]),
+    pool.query(
+      `SELECT COUNT(*) AS total
+       FROM sections s
+       JOIN courses c ON c.id = s.course_id
+       WHERE c.department_id = ?`,
+      [id]
+    ),
+    pool.query(
+      `SELECT COUNT(*) AS total
+       FROM students st
+       JOIN programs p ON p.id = st.program_id
+       WHERE p.department_id = ? AND st.status = 'active'`,
+      [id]
+    ),
+    pool.query('SELECT COUNT(*) AS total FROM instructors WHERE department_id = ? AND is_active = 1', [id]),
+    pool.query('SELECT COUNT(*) AS total FROM invigilators WHERE department_id = ? AND is_active = 1', [id]),
+    pool.query(
+      `SELECT COUNT(DISTINCT e.id) AS total
+       FROM exams e
+       JOIN courses c ON c.id = e.course_id
+       WHERE c.department_id = ?`,
+      [id]
+    ),
+    pool.query(
+      `SELECT COUNT(*) AS total
+       FROM exam_schedule_details esd
+       JOIN exam_schedules es ON es.id = esd.exam_schedule_id
+       JOIN exams e ON e.id = esd.exam_id
+       JOIN courses c ON c.id = e.course_id
+       WHERE esd.status IN ('scheduled','confirmed','completed')
+         AND es.status NOT IN ('cancelled','archived')
+         AND c.department_id = ?`,
+      [id]
+    ),
+    pool.query(
+      `SELECT COUNT(*) AS total
+       FROM exams e
+       JOIN courses c ON c.id = e.course_id
+       WHERE c.department_id = ?
+         AND e.status NOT IN ('cancelled','completed')
+         AND NOT EXISTS (
+           SELECT 1
+           FROM exam_schedule_details esd
+           JOIN exam_schedules es ON es.id = esd.exam_schedule_id
+           WHERE esd.exam_id = e.id
+             AND esd.status <> 'cancelled'
+             AND es.status <> 'cancelled'
+         )`,
+      [id]
+    ),
+    pool.query(
+      `SELECT COUNT(DISTINCT es.id) AS total
+       FROM exam_schedules es
+       JOIN exam_schedule_details esd ON esd.exam_schedule_id = es.id
+       JOIN exams e ON e.id = esd.exam_id
+       JOIN courses c ON c.id = e.course_id
+       WHERE esd.status <> 'cancelled'
+         AND es.status <> 'cancelled'
+         AND c.department_id = ?`,
+      [id]
+    ),
+    pool.query(
+      `SELECT COUNT(*) AS total
+       FROM schedule_conflicts sc
+       JOIN exam_schedule_details esd ON esd.id = sc.exam_schedule_detail_id
+       JOIN exams e ON e.id = esd.exam_id
+       JOIN courses c ON c.id = e.course_id
+       WHERE sc.status = 'open' AND c.department_id = ?`,
+      [id]
+    ),
+    pool.query('SELECT COUNT(*) AS total FROM rooms WHERE is_active = 1'),
+    pool.query('SELECT COUNT(*) AS total FROM buildings'),
+  ]);
+
+  return {
+    programs: Number(programRows[0].total || 0),
+    courses: Number(courseRows[0].total || 0),
+    activeCourses: Number(activeCourseRows[0].total || 0),
+    sections: Number(sectionRows[0].total || 0),
+    students: Number(studentRows[0].total || 0),
+    instructors: Number(instructorRows[0].total || 0),
+    invigilators: Number(invigilatorRows[0].total || 0),
+    exams: Number(examRows[0].total || 0),
+    scheduledExams: Number(scheduledRows[0].total || 0),
+    unscheduledExams: Number(unscheduledRows[0].total || 0),
+    schedules: Number(scheduleRows[0].total || 0),
+    openConflicts: Number(conflictRows[0].total || 0),
+
+    // Shared university facilities are not department-owned, so they are
+    // reported separately and labelled as such in the UI.
+    shared: {
+      activeRooms: Number(roomRows[0].total || 0),
+      buildings: Number(buildingRows[0].total || 0),
+    },
+  };
+}
+
+/**
  * Hard-delete a department only when nothing references it. Deleting otherwise
  * would cascade-delete programs/courses (and their sections and exams), so the
  * operation is refused while any dependent record exists.
@@ -349,6 +479,7 @@ module.exports = {
   listOptions,
   getPublicById,
   getDependencies,
+  getStats,
   createDepartment,
   updateDepartment,
   setDepartmentStatus,

@@ -1,10 +1,8 @@
-'use strict';
+﻿'use strict';
 
 /**
  * System settings routes, mounted at /api/v1/settings.
- *
- * Read: any authenticated user may read the full catalogue (the admin UI needs
- * it) plus the public subset. Write: administrators only, enforced server-side.
+ * Read: any authenticated user. Write/admin actions: administrators only.
  */
 
 const express = require('express');
@@ -14,6 +12,7 @@ const { authenticate } = require('../middleware/auth.middleware');
 const { authorize } = require('../middleware/role.middleware');
 const { validate } = require('../middleware/validate.middleware');
 const { validateUpdateSettings } = require('../validators/settings.validator');
+const { validateResetExecution } = require('../validators/reset.validator');
 
 const router = express.Router();
 
@@ -23,5 +22,7 @@ router.get('/public', settingsController.publicSettings);
 router.get('/', settingsController.list);
 
 router.put('/', authorize('admin'), validate(validateUpdateSettings), settingsController.update);
+router.get('/reset/preview', authorize('admin'), settingsController.resetPreview);
+router.post('/reset/execute', authorize('admin'), validate(validateResetExecution), settingsController.resetExecute);
 
 module.exports = router;

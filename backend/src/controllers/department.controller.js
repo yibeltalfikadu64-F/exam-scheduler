@@ -108,6 +108,31 @@ const dependencies = asyncHandler(async (req, res) => {
 });
 
 /**
+ * GET /api/v1/departments/:id/stats
+ * Department-scoped statistics for the department detail page.
+ */
+const stats = asyncHandler(async (req, res) => {
+  const id = parseId(req.params.id);
+
+  const department = await departmentService.getPublicById(id);
+
+  if (!department) {
+    throw ApiError.notFound(
+      'Department not found.',
+      { code: 'DEPARTMENT_NOT_FOUND' }
+    );
+  }
+
+  const statistics = await departmentService.getStats(id);
+
+  return ApiResponse.success(
+    res,
+    { department, stats: statistics },
+    'Department statistics retrieved successfully.'
+  );
+});
+
+/**
  * POST /api/v1/departments
  * Create a department.
  */
@@ -197,6 +222,7 @@ module.exports = {
   options,
   getOne,
   dependencies,
+  stats,
   create,
   update,
   setStatus,

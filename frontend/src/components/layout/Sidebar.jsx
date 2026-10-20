@@ -13,6 +13,7 @@ import {
   ClipboardList,
   DoorOpen,
   GraduationCap,
+  Layers,
   LayoutDashboard,
   Settings,
   ShieldCheck,
@@ -55,9 +56,14 @@ const NAV_SECTIONS = [
         icon: BookOpen,
       },
       {
-        label: 'Courses & Sections',
+        label: 'Courses',
         to: '/courses',
         icon: BookOpen,
+      },
+      {
+        label: 'Sections',
+        to: '/sections',
+        icon: Layers,
       },
       {
         label: 'Exams',

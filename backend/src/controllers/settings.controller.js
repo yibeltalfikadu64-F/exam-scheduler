@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 
 /**
  * System settings controllers (Phase 7).
@@ -30,4 +30,25 @@ const update = asyncHandler(async (req, res) =>
   )
 );
 
-module.exports = { list, publicSettings, update };
+
+const resetPreview = asyncHandler(async (req, res) => {
+  const systemResetService = require('../services/systemReset.service');
+  ApiResponse.success(res, await systemResetService.previewReset(), 'System reset preview retrieved successfully.');
+});
+
+const resetExecute = asyncHandler(async (req, res) => {
+  const systemResetService = require('../services/systemReset.service');
+  ApiResponse.success(
+    res,
+    await systemResetService.executeReset({
+      confirm: req.body.confirm,
+      actor: req.user,
+      meta: requestMeta(req),
+    }),
+    'Operational data reset completed successfully.'
+  );
+});
+
+
+module.exports = { list, publicSettings, update, resetPreview, resetExecute };
+
